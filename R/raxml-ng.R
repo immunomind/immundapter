@@ -3,6 +3,11 @@
 #' `conf_raxml_ng()` validates RAxML-NG parameters. `tool_raxml_ng()` creates
 #' the adapter from that configuration.
 #'
+#' @section Development status:
+#' Configuration, installation help, and installation checks are available.
+#' Running RAxML-NG, reading its results, annotating `ImmunData`, and returning
+#' citation metadata are planned for the next version.
+#'
 #' @param sequence_col Column containing aligned nucleotide or amino-acid
 #'   sequences.
 #' @param family_col Column containing B-cell family identifiers.
@@ -64,6 +69,21 @@ tool_raxml_ng <- function(config = conf_raxml_ng()) {
 
 #' RAxML-NG tool configuration
 #'
+#' @field sequence_col Column containing aligned nucleotide or amino-acid
+#'   sequences.
+#' @field family_col Column containing B-cell family identifiers.
+#' @field tip_col Column containing stable phylogenetic-tree tip identifiers.
+#' @field locus B-cell receptor locus to analyze.
+#' @field analysis RAxML-NG analysis mode.
+#' @field model Evolutionary model passed to `--model`.
+#' @field starting_tree Optional starting tree specification passed to
+#'   `--tree`.
+#' @field bootstrap_replicates Optional number of bootstrap trees.
+#' @field threads Number of threads.
+#' @field seed Optional random seed.
+#' @field executable RAxML-NG executable name or path.
+#' @field run_args Additional named RAxML-NG arguments.
+#'
 #' @keywords internal
 RaxmlNgToolConfig <- R6::R6Class(
   classname = "RaxmlNgToolConfig",
@@ -82,6 +102,10 @@ RaxmlNgToolConfig <- R6::R6Class(
     seed = NULL,
     executable = NULL,
     run_args = NULL,
+    #' @description
+    #' Create a validated RAxML-NG configuration. Users should call
+    #' [conf_raxml_ng()] instead.
+    #' @param values A named list of RAxML-NG configuration values.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_string(values$sequence_col)
@@ -118,6 +142,10 @@ RaxmlNgTool <- R6::R6Class(
   inherit = AbstractTool,
   cloneable = FALSE,
   public = list(
+    #' @description
+    #' Create a RAxML-NG adapter skeleton. Users should call [tool_raxml_ng()]
+    #' instead. Execution support is planned for the next version.
+    #' @param config A [RaxmlNgToolConfig] returned by [conf_raxml_ng()].
     initialize = function(config = conf_raxml_ng()) {
       checkmate::assert_r6(config, classes = "RaxmlNgToolConfig")
       super$initialize("raxml-ng", config)

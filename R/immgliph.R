@@ -3,6 +3,10 @@
 #' `conf_immgliph()` validates ImmGLIPH parameters. `tool_immgliph()` creates
 #' the adapter from that configuration.
 #'
+#' @section Development status:
+#' ImmGLIPH configuration, execution, result parsing, and annotation are
+#' available. Citation metadata are planned for the next version.
+#'
 #' @param method ImmGLIPH preset: `"gliph2"`, `"gliph1"`, or `"custom"`.
 #' @param reference Built-in ImmGLIPH reference repertoire name.
 #' @param cdr3_col Column containing CDR3 amino-acid sequences.
@@ -54,6 +58,17 @@ tool_immgliph <- function(config = conf_immgliph()) {
 
 #' ImmGLIPH tool configuration
 #'
+#' @field method ImmGLIPH preset: `"gliph2"`, `"gliph1"`, or `"custom"`.
+#' @field reference Built-in ImmGLIPH reference repertoire name.
+#' @field cdr3_col Column containing CDR3 amino-acid sequences.
+#' @field v_gene_col Optional V-gene column.
+#' @field patient_col Optional donor or sample column.
+#' @field hla_col Optional HLA column.
+#' @field counts_col Optional clone-count column.
+#' @field n_cores Number of cores passed to ImmGLIPH.
+#' @field seed Optional random seed used around the ImmGLIPH call.
+#' @field run_args Additional named arguments for `immGLIPH::runGLIPH()`.
+#'
 #' @keywords internal
 ImmGliphToolConfig <- R6::R6Class(
   classname = "ImmGliphToolConfig",
@@ -70,6 +85,10 @@ ImmGliphToolConfig <- R6::R6Class(
     n_cores = NULL,
     seed = NULL,
     run_args = NULL,
+    #' @description
+    #' Create a validated ImmGLIPH configuration. Users should call
+    #' [conf_immgliph()] instead.
+    #' @param values A named list of ImmGLIPH configuration values.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_choice(
@@ -100,6 +119,9 @@ ImmGliphTool <- R6::R6Class(
   inherit = AbstractTool,
   cloneable = FALSE,
   public = list(
+    #' @description
+    #' Create an ImmGLIPH adapter. Users should call [tool_immgliph()] instead.
+    #' @param config An [ImmGliphToolConfig] returned by [conf_immgliph()].
     initialize = function(config = conf_immgliph()) {
       checkmate::assert_r6(config, classes = "ImmGliphToolConfig")
       super$initialize("immgliph", config)

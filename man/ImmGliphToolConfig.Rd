@@ -10,6 +10,31 @@ ImmGLIPH tool configuration
 \section{Super class}{
 \code{\link[immundapter:AbstractConfig]{AbstractConfig}} -> \code{ImmGliphToolConfig}
 }
+\section{Public fields}{
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{method}}{ImmGLIPH preset: \code{"gliph2"}, \code{"gliph1"}, or \code{"custom"}.}
+
+    \item{\code{reference}}{Built-in ImmGLIPH reference repertoire name.}
+
+    \item{\code{cdr3_col}}{Column containing CDR3 amino-acid sequences.}
+
+    \item{\code{v_gene_col}}{Optional V-gene column.}
+
+    \item{\code{patient_col}}{Optional donor or sample column.}
+
+    \item{\code{hla_col}}{Optional HLA column.}
+
+    \item{\code{counts_col}}{Optional clone-count column.}
+
+    \item{\code{n_cores}}{Number of cores passed to ImmGLIPH.}
+
+    \item{\code{seed}}{Optional random seed used around the ImmGLIPH call.}
+
+    \item{\code{run_args}}{Additional named arguments for \code{immGLIPH::runGLIPH()}.}
+  }
+  \if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
@@ -25,9 +50,18 @@ ImmGLIPH tool configuration
 \if{html}{\out{<a id="method-ImmGliphToolConfig-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-ImmGliphToolConfig-initialize}{}}}
 \subsection{\code{ImmGliphToolConfig$new()}}{
+  Create a validated ImmGLIPH configuration. Users should call
+\code{\link[=conf_immgliph]{conf_immgliph()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ImmGliphToolConfig$new(values)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{values}}{A named list of ImmGLIPH configuration values.}
+    }
     \if{html}{\out{</div>}}
   }
 }

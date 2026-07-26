@@ -110,9 +110,9 @@ parse that specific execution.}
 \link{Tcrdist3ClusterResults} or \link{Tcrdist3DistanceResults}. Both provide a lazy
 duckplyr \verb{$mapping} and a \verb{$distances} artifact path. Cluster results also
 provide \verb{$clusters} and \verb{$edges}; their \verb{$annotate(idata)} joins clusters
-back by \code{imd_receptor_id} as \code{imd_group_id}, replacing any existing
-grouping. Distance results cannot annotate and explain how to rerun in
-cluster mode.}
+back by \code{imd_receptor_id} as \code{tcrdist_cluster_id} and
+\code{tcrdist_cluster_size}. Distance results cannot annotate and explain how
+to rerun in cluster mode.}
 }
 
 In short:
@@ -236,8 +236,7 @@ idata_run <- tool$run(
 )
 idata_results <- idata_run$results()
 
-# 5. Join receptor-level clusters back as `imd_group_id`.
-# Any existing `imd_group_id` assignment is replaced.
+# 5. Join receptor-level `tcrdist_cluster_id` assignments back.
 annotated <- idata_results$annotate(idata)
 
 # Distance-only runs stop after creating the mapping and distance matrix.

@@ -8,6 +8,7 @@
 #' @importFrom duckplyr as_duckdb_tibble compute_parquet read_parquet_duckdb
 #' @importFrom fs dir_create path path_abs
 #' @importFrom immundata annotate_receptors imd_schema
+#' @importFrom jsonlite write_json
 #' @importFrom rlang abort sym
 #' @importFrom withr with_seed
 "_PACKAGE"

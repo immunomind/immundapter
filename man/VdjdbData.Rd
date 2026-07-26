@@ -29,9 +29,18 @@ VDJdb data-source adapter
 \if{html}{\out{<a id="method-VdjdbData-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-VdjdbData-initialize}{}}}
 \subsection{\code{VdjdbData$new()}}{
+  Create a VDJdb data-source adapter. Users should call \code{\link[=data_vdjdb]{data_vdjdb()}}
+instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{VdjdbData$new(output_dir = immundapter_data_path("data"))}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{output_dir}}{Directory used to store the VDJdb data file.}
+    }
     \if{html}{\out{</div>}}
   }
 }

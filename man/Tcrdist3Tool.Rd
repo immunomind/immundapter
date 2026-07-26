@@ -59,8 +59,8 @@ Call \code{run$results()} to obtain immutable results. Both
 \link{Tcrdist3ClusterResults} and \link{Tcrdist3DistanceResults} expose a lazy
 duckplyr \verb{$mapping} and a \verb{$distances} NumPy matrix path. Cluster results
 additionally expose lazy \verb{$clusters} and \verb{$edges} tables. Their
-\verb{$annotate(idata, ...)} joins the cluster assignment as \code{imd_group_id} and
-also joins \code{tcrdist_cluster_size}. An existing \code{imd_group_id} is replaced.
+\verb{$annotate(idata, ...)} joins \code{tcrdist_cluster_id} and
+\code{tcrdist_cluster_size}.
 For an \code{ImmunData} run, result \code{input_id} is the original
 \code{imd_receptor_id}, so one receptor-level assignment is propagated to all
 annotation rows belonging to that receptor. Additional arguments are passed
@@ -130,8 +130,7 @@ idata_run <- tool$run(
 )
 idata_results <- idata_run$results()
 
-# 5. Join receptor-level clusters back as `imd_group_id`.
-# Any existing `imd_group_id` assignment is replaced.
+# 5. Join receptor-level `tcrdist_cluster_id` assignments back.
 annotated <- idata_results$annotate(idata)
 
 # Distance-only runs stop after creating the mapping and distance matrix.

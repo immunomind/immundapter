@@ -6,10 +6,21 @@
 \description{
 Cluster results add lazy duckplyr cluster and edge tables to the common
 tcrdist3 outputs. \verb{$annotate(idata)} joins receptor-level cluster
-assignments to an \code{ImmunData} object as \code{imd_group_id}, replacing any
-existing grouping.
+assignments to an \code{ImmunData} object as \code{tcrdist_cluster_id} and
+\code{tcrdist_cluster_size}.
 }
 \keyword{internal}
 \section{Super classes}{
 \code{\link[immundapter:ToolResults]{ToolResults}} -> \code{\link[immundapter:Tcrdist3Results]{Tcrdist3Results}} -> \code{Tcrdist3ClusterResults}
+}
+\section{Active bindings}{
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{clusters}}{Read-only lazy duckplyr table of receptor cluster
+assignments and cluster sizes.}
+
+    \item{\code{edges}}{Read-only lazy duckplyr table of receptor pairs connected at
+the configured distance radius.}
+  }
+  \if{html}{\out{</div>}}
 }

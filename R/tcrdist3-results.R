@@ -3,6 +3,10 @@
 #' `Tcrdist3Results` contains outputs shared by every tcrdist3 mode: a lazy
 #' duckplyr receptor mapping and the path to the NumPy distance matrix.
 #'
+#' @field mapping Read-only lazy duckplyr table that maps each original input
+#'   receptor to the receptor used for distance calculation.
+#' @field distances Read-only path to the NumPy `.npy` distance matrix.
+#'
 #' @keywords internal
 Tcrdist3Results <- R6::R6Class(
   classname = "Tcrdist3Results",
@@ -61,8 +65,13 @@ Tcrdist3DistanceResults <- R6::R6Class(
 #'
 #' Cluster results add lazy duckplyr cluster and edge tables to the common
 #' tcrdist3 outputs. `$annotate(idata)` joins receptor-level cluster
-#' assignments to an `ImmunData` object as `imd_group_id`, replacing any
-#' existing grouping.
+#' assignments to an `ImmunData` object as `tcrdist_cluster_id` and
+#' `tcrdist_cluster_size`.
+#'
+#' @field clusters Read-only lazy duckplyr table of receptor cluster
+#'   assignments and cluster sizes.
+#' @field edges Read-only lazy duckplyr table of receptor pairs connected at
+#'   the configured distance radius.
 #'
 #' @keywords internal
 Tcrdist3ClusterResults <- R6::R6Class(
@@ -90,7 +99,6 @@ Tcrdist3ClusterResults <- R6::R6Class(
   private = list(
     annotate_impl = function(idata, ...) {
       receptor_col <- immundata::imd_schema("receptor")
-      group_col <- immundata::imd_schema("group")
       annotations <- self$clusters |>
         dplyr::select(
           dplyr::all_of(c(
@@ -99,10 +107,9 @@ Tcrdist3ClusterResults <- R6::R6Class(
             "tcrdist_cluster_size"
           ))
         ) |>
-        dplyr::rename(
-          !!receptor_col := dplyr::all_of("input_id"),
-          !!group_col := dplyr::all_of("tcrdist_cluster_id")
-        )
+        dplyr::rename(dplyr::all_of(
+          stats::setNames("input_id", receptor_col)
+        ))
 
       immundata::annotate_receptors(
         idata = idata,

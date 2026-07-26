@@ -20,9 +20,19 @@ constructor.
 \if{html}{\out{<a id="method-AbstractConfig-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-AbstractConfig-initialize}{}}}
 \subsection{\code{AbstractConfig$new()}}{
+  Create a configuration from validated values. Concrete configuration
+classes validate their values before they call this method.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{AbstractConfig$new(values)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{values}}{A named list of configuration values. Every name must
+match a public field of the concrete configuration class.}
+    }
     \if{html}{\out{</div>}}
   }
 }
@@ -31,10 +41,15 @@ constructor.
 \if{html}{\out{<a id="method-AbstractConfig-as_list"></a>}}
 \if{latex}{\out{\hypertarget{method-AbstractConfig-as_list}{}}}
 \subsection{\code{AbstractConfig$as_list()}}{
+  Return a plain-list copy of the configuration.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{AbstractConfig$as_list()}
     \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A named list containing the configuration fields and their
+current values.
   }
 }
 

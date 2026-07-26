@@ -9,6 +9,24 @@ classes implement \verb{$results()} so results can be recovered without retainin
 or recreating the tool object that launched the run.
 }
 \keyword{internal}
+\section{Active bindings}{
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{status}}{Read-only execution status: \code{"success"} or \code{"partial"}.}
+
+    \item{\code{tool}}{Read-only name of the tool that created the run.}
+
+    \item{\code{path}}{Read-only path to the run directory.}
+
+    \item{\code{artifacts}}{Read-only named list of result artifact paths.}
+
+    \item{\code{config}}{Read-only plain-list snapshot of the configuration used for
+the run.}
+
+    \item{\code{input}}{Read-only provenance summary of the input.}
+  }
+  \if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
@@ -20,9 +38,18 @@ or recreating the tool object that launched the run.
 \if{html}{\out{<a id="method-ToolRun-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolRun-initialize}{}}}
 \subsection{\code{ToolRun$new()}}{
+  Create an immutable record of a tool execution.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolRun$new(values)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{values}}{A named list with \code{status}, \code{tool}, \code{path}, \code{artifacts},
+\code{config}, and \code{input} entries.}
+    }
     \if{html}{\out{</div>}}
   }
 }
@@ -31,10 +58,15 @@ or recreating the tool object that launched the run.
 \if{html}{\out{<a id="method-ToolRun-results"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolRun-results}{}}}
 \subsection{\code{ToolRun$results()}}{
+  Read the artifacts as a result object. Concrete run classes select and
+create the appropriate result class.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolRun$results()}
     \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A \link{ToolResults} object for this run.
   }
 }
 

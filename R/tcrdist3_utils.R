@@ -51,12 +51,9 @@ tcrdist3_rename_chain_columns <- function(table,
       dplyr::filter(!!rlang::sym(column) != "")
   }
 
+  rename_map <- stats::setNames(unname(source), unname(target))
   table |>
-    dplyr::rename(
-      !!target[["cdr3"]] := dplyr::all_of(source[["cdr3"]]),
-      !!target[["v_gene"]] := dplyr::all_of(source[["v_gene"]]),
-      !!target[["j_gene"]] := dplyr::all_of(source[["j_gene"]])
-    )
+    dplyr::rename(dplyr::all_of(rename_map))
 }
 
 tcrdist3_schema_chain_loci <- function(chain) {

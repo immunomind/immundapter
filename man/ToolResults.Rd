@@ -9,6 +9,15 @@ Every result exposes \verb{$annotate(idata)}. Results that cannot annotate
 step; annotatable results override it with their annotation implementation.
 }
 \keyword{internal}
+\section{Active bindings}{
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{run}}{The read-only \link{ToolRun} that produced these results.}
+
+    \item{\code{tool}}{The read-only name of the tool that produced these results.}
+  }
+  \if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
@@ -20,9 +29,17 @@ step; annotatable results override it with their annotation implementation.
 \if{html}{\out{<a id="method-ToolResults-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolResults-initialize}{}}}
 \subsection{\code{ToolResults$new()}}{
+  Create a result object for a completed tool run.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolResults$new(run)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{run}}{The \link{ToolRun} that produced the result artifacts.}
+    }
     \if{html}{\out{</div>}}
   }
 }
@@ -31,10 +48,26 @@ step; annotatable results override it with their annotation implementation.
 \if{html}{\out{<a id="method-ToolResults-annotate"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolResults-annotate}{}}}
 \subsection{\code{ToolResults$annotate()}}{
+  Add result annotations to immune-repertoire data. Concrete result
+classes implement the annotation operation. The base method reports an
+informative error when a result cannot provide annotations.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolResults$annotate(idata, ...)}
     \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{idata}}{An \link[immundata:ImmunData]{immundata::ImmunData} object to annotate.}
+      \item{\code{...}}{Additional arguments passed to the concrete annotation
+method.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    The value returned by the concrete annotation method, normally
+an updated \link[immundata:ImmunData]{immundata::ImmunData} object.
   }
 }
 

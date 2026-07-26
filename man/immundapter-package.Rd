@@ -6,14 +6,14 @@
 \alias{immundapter-package}
 \title{immundapter: External tool adapters for ImmunData}
 \description{
-More about what it does (maybe more than one line). Continuation lines should be indented.
+Connects the Immunarch ecosystem to a rich variety of external tools and reference databases. Tool adapters capture validated analysis recipes, run software, preserve the resulting artifacts, and translate outputs back into annotated ImmunData objects.
 }
 \author{
-\strong{Maintainer}: Jane Doe \email{jane@example.com}
+\strong{Maintainer}: Vadim I. Nazarov \email{support@immunomind.com} (\href{https://orcid.org/0000-0003-3659-2709}{ORCID})
 
 Authors:
 \itemize{
-  \item Jane Doe \email{jane@example.com}
+  \item Vadim I. Nazarov \email{support@immunomind.com} (\href{https://orcid.org/0000-0003-3659-2709}{ORCID})
 }
 
 }

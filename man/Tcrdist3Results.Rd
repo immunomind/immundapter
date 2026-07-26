@@ -11,3 +11,13 @@ duckplyr receptor mapping and the path to the NumPy distance matrix.
 \section{Super class}{
 \code{\link[immundapter:ToolResults]{ToolResults}} -> \code{Tcrdist3Results}
 }
+\section{Active bindings}{
+  \if{html}{\out{<div class="r6-active-bindings">}}
+  \describe{
+    \item{\code{mapping}}{Read-only lazy duckplyr table that maps each original input
+receptor to the receptor used for distance calculation.}
+
+    \item{\code{distances}}{Read-only path to the NumPy \code{.npy} distance matrix.}
+  }
+  \if{html}{\out{</div>}}
+}

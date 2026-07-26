@@ -3,6 +3,11 @@
 #' `conf_igblast()` validates IgBLAST parameters. `tool_igblast()` creates the
 #' adapter from that configuration.
 #'
+#' @section Development status:
+#' Configuration, installation help, and installation checks are available.
+#' Running IgBLAST, reading its results, annotating `ImmunData`, and returning
+#' citation metadata are planned for the next version.
+#'
 #' @param sequence_col Column containing nucleotide query sequences.
 #' @param organism Query organism or `"auto"`.
 #' @param ig_seqtype Receptor sequence type: `"Ig"`, `"TCR"`, or `"auto"`.
@@ -57,6 +62,18 @@ tool_igblast <- function(config = conf_igblast()) {
 
 #' IgBLAST tool configuration
 #'
+#' @field sequence_col Column containing nucleotide query sequences.
+#' @field organism Query organism or `"auto"`.
+#' @field ig_seqtype Receptor sequence type: `"Ig"`, `"TCR"`, or `"auto"`.
+#' @field germline_db_V V-region database path or `"auto"`.
+#' @field germline_db_D D-region database path or `"auto"`.
+#' @field germline_db_J J-region database path or `"auto"`.
+#' @field c_region_db Constant-region database path, `"auto"`, or `NULL`.
+#' @field auxiliary_data Auxiliary-data file path, `"auto"`, or `NULL`.
+#' @field num_threads Number of IgBLAST threads.
+#' @field igblast_root Optional path to an existing IgBLAST installation.
+#' @field run_args Additional named arguments for `igblastr::igblastn()`.
+#'
 #' @keywords internal
 IgblastToolConfig <- R6::R6Class(
   classname = "IgblastToolConfig",
@@ -74,6 +91,10 @@ IgblastToolConfig <- R6::R6Class(
     num_threads = NULL,
     igblast_root = NULL,
     run_args = NULL,
+    #' @description
+    #' Create a validated IgBLAST configuration. Users should call
+    #' [conf_igblast()] instead.
+    #' @param values A named list of IgBLAST configuration values.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_string(values$sequence_col)
@@ -105,6 +126,10 @@ IgblastTool <- R6::R6Class(
   inherit = AbstractTool,
   cloneable = FALSE,
   public = list(
+    #' @description
+    #' Create an IgBLAST adapter skeleton. Users should call [tool_igblast()]
+    #' instead. Execution support is planned for the next version.
+    #' @param config An [IgblastToolConfig] returned by [conf_igblast()].
     initialize = function(config = conf_igblast()) {
       checkmate::assert_r6(config, classes = "IgblastToolConfig")
       super$initialize("igblast", config)

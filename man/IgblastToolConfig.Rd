@@ -10,6 +10,33 @@ IgBLAST tool configuration
 \section{Super class}{
 \code{\link[immundapter:AbstractConfig]{AbstractConfig}} -> \code{IgblastToolConfig}
 }
+\section{Public fields}{
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{sequence_col}}{Column containing nucleotide query sequences.}
+
+    \item{\code{organism}}{Query organism or \code{"auto"}.}
+
+    \item{\code{ig_seqtype}}{Receptor sequence type: \code{"Ig"}, \code{"TCR"}, or \code{"auto"}.}
+
+    \item{\code{germline_db_V}}{V-region database path or \code{"auto"}.}
+
+    \item{\code{germline_db_D}}{D-region database path or \code{"auto"}.}
+
+    \item{\code{germline_db_J}}{J-region database path or \code{"auto"}.}
+
+    \item{\code{c_region_db}}{Constant-region database path, \code{"auto"}, or \code{NULL}.}
+
+    \item{\code{auxiliary_data}}{Auxiliary-data file path, \code{"auto"}, or \code{NULL}.}
+
+    \item{\code{num_threads}}{Number of IgBLAST threads.}
+
+    \item{\code{igblast_root}}{Optional path to an existing IgBLAST installation.}
+
+    \item{\code{run_args}}{Additional named arguments for \code{igblastr::igblastn()}.}
+  }
+  \if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
@@ -25,9 +52,18 @@ IgBLAST tool configuration
 \if{html}{\out{<a id="method-IgblastToolConfig-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-IgblastToolConfig-initialize}{}}}
 \subsection{\code{IgblastToolConfig$new()}}{
+  Create a validated IgBLAST configuration. Users should call
+\code{\link[=conf_igblast]{conf_igblast()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{IgblastToolConfig$new(values)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{values}}{A named list of IgBLAST configuration values.}
+    }
     \if{html}{\out{</div>}}
   }
 }

@@ -61,6 +61,13 @@ or \code{"fast"}.}
 \code{conf_raxml_ng()} validates RAxML-NG parameters. \code{tool_raxml_ng()} creates
 the adapter from that configuration.
 }
+\section{Development status}{
+
+Configuration, installation help, and installation checks are available.
+Running RAxML-NG, reading its results, annotating \code{ImmunData}, and returning
+citation metadata are planned for the next version.
+}
+
 \seealso{
 \url{https://github.com/amkozlov/raxml-ng/wiki/Input-data#evolutionary-model}
 }

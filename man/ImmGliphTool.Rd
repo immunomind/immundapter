@@ -28,9 +28,17 @@ ImmGLIPH adapter
 \if{html}{\out{<a id="method-ImmGliphTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-ImmGliphTool-initialize}{}}}
 \subsection{\code{ImmGliphTool$new()}}{
+  Create an ImmGLIPH adapter. Users should call \code{\link[=tool_immgliph]{tool_immgliph()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ImmGliphTool$new(config = conf_immgliph())}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{config}}{An \link{ImmGliphToolConfig} returned by \code{\link[=conf_immgliph]{conf_immgliph()}}.}
+    }
     \if{html}{\out{</div>}}
   }
 }

@@ -34,6 +34,10 @@ VdjdbData <- R6::R6Class(
   inherit = AbstractData,
   cloneable = FALSE,
   public = list(
+    #' @description
+    #' Create a VDJdb data-source adapter. Users should call [data_vdjdb()]
+    #' instead.
+    #' @param output_dir Directory used to store the VDJdb data file.
     initialize = function(output_dir = immundapter_data_path("data")) {
       super$initialize("vdjdb", output_dir)
     }

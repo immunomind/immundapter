@@ -28,9 +28,18 @@ RAxML-NG adapter skeleton
 \if{html}{\out{<a id="method-RaxmlNgTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-RaxmlNgTool-initialize}{}}}
 \subsection{\code{RaxmlNgTool$new()}}{
+  Create a RAxML-NG adapter skeleton. Users should call \code{\link[=tool_raxml_ng]{tool_raxml_ng()}}
+instead. Execution support is planned for the next version.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RaxmlNgTool$new(config = conf_raxml_ng())}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{config}}{A \link{RaxmlNgToolConfig} returned by \code{\link[=conf_raxml_ng]{conf_raxml_ng()}}.}
+    }
     \if{html}{\out{</div>}}
   }
 }

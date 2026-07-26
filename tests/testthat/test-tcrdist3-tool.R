@@ -183,24 +183,11 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
 
   idata_run <- tool$run(idata, output_dir = output_dir)
   idata_results <- idata_run$results()
-  receptor_col <- immundata::imd_schema("receptor")
-  group_col <- immundata::imd_schema("group")
-  existing_groups <- idata$receptors |>
-    dplyr::select(dplyr::all_of(receptor_col)) |>
-    dplyr::mutate(!!group_col := "existing_cluster") |>
-    dplyr::collect() |>
-    as.data.frame()
-  grouped_idata <- immundata::annotate_receptors(
-    idata = idata,
-    annotations = existing_groups,
-    annot_col = receptor_col,
-    keep_repertoires = FALSE
-  )
-  annotated <- idata_results$annotate(grouped_idata)
+  annotated <- idata_results$annotate(idata)
   idata_clusters <- annotated$annotations |>
     dplyr::select(
       expected_cluster,
-      dplyr::all_of(group_col),
+      tcrdist_cluster_id,
       tcrdist_cluster_size
     ) |>
     dplyr::collect() |>
@@ -212,16 +199,15 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
     c(1L, 2L, 3L)
   )
   expect_equal(
-    length(unique(idata_clusters[[group_col]])),
+    length(unique(idata_clusters$tcrdist_cluster_id)),
     length(unique(idata_clusters$expected_cluster))
   )
-  expect_false("existing_cluster" %in% idata_clusters[[group_col]])
-  expect_false(
+  expect_true(
     "tcrdist_cluster_id" %in% colnames(annotated$annotations)
   )
   expect_true(all(vapply(
     split(
-      idata_clusters[[group_col]],
+      idata_clusters$tcrdist_cluster_id,
       idata_clusters$expected_cluster
     ),
     function(cluster) length(unique(cluster)) == 1L,
@@ -262,7 +248,7 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
     dplyr::select(
       cell_id,
       imd_receptor_id,
-      dplyr::all_of(group_col)
+      tcrdist_cluster_id
     ) |>
     dplyr::collect() |>
     as.data.frame()
@@ -288,7 +274,7 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
   )
   expect_true(all(vapply(
     split(
-      paired_annotations_result[[group_col]],
+      paired_annotations_result$tcrdist_cluster_id,
       paired_annotations_result$imd_receptor_id
     ),
     function(cluster) length(unique(cluster)) == 1L,

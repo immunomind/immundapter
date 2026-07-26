@@ -5,6 +5,7 @@
 #' validate and normalize their supported input types, execute the external
 #' tool, and select the concrete run class that parses their results.
 #'
+#' @keywords internal
 tool_input_summary <- function(input) {
   if (inherits(input, "ImmunData")) {
     provenance <- input$provenance

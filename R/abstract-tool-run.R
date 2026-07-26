@@ -4,11 +4,23 @@
 #' classes implement `$results()` so results can be recovered without retaining
 #' or recreating the tool object that launched the run.
 #'
+#' @field status Read-only execution status: `"success"` or `"partial"`.
+#' @field tool Read-only name of the tool that created the run.
+#' @field path Read-only path to the run directory.
+#' @field artifacts Read-only named list of result artifact paths.
+#' @field config Read-only plain-list snapshot of the configuration used for
+#'   the run.
+#' @field input Read-only provenance summary of the input.
+#'
 #' @keywords internal
 ToolRun <- R6::R6Class(
   classname = "ToolRun",
   cloneable = FALSE,
   public = list(
+    #' @description
+    #' Create an immutable record of a tool execution.
+    #' @param values A named list with `status`, `tool`, `path`, `artifacts`,
+    #'   `config`, and `input` entries.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_choice(values$status, c("success", "partial"))
@@ -25,6 +37,10 @@ ToolRun <- R6::R6Class(
       private$.config <- values$config
       private$.input <- values$input
     },
+    #' @description
+    #' Read the artifacts as a result object. Concrete run classes select and
+    #' create the appropriate result class.
+    #' @return A [ToolResults] object for this run.
     results = function() {
       private$results_impl()
     }

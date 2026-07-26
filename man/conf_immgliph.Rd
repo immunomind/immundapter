@@ -51,6 +51,12 @@ tool_immgliph(config = conf_immgliph())
 \code{conf_immgliph()} validates ImmGLIPH parameters. \code{tool_immgliph()} creates
 the adapter from that configuration.
 }
+\section{Development status}{
+
+ImmGLIPH configuration, execution, result parsing, and annotation are
+available. Citation metadata are planned for the next version.
+}
+
 \seealso{
 \url{https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH}
 }

@@ -10,6 +10,37 @@ RAxML-NG tool configuration
 \section{Super class}{
 \code{\link[immundapter:AbstractConfig]{AbstractConfig}} -> \code{RaxmlNgToolConfig}
 }
+\section{Public fields}{
+  \if{html}{\out{<div class="r6-fields">}}
+  \describe{
+    \item{\code{sequence_col}}{Column containing aligned nucleotide or amino-acid
+sequences.}
+
+    \item{\code{family_col}}{Column containing B-cell family identifiers.}
+
+    \item{\code{tip_col}}{Column containing stable phylogenetic-tree tip identifiers.}
+
+    \item{\code{locus}}{B-cell receptor locus to analyze.}
+
+    \item{\code{analysis}}{RAxML-NG analysis mode.}
+
+    \item{\code{model}}{Evolutionary model passed to \code{--model}.}
+
+    \item{\code{starting_tree}}{Optional starting tree specification passed to
+\code{--tree}.}
+
+    \item{\code{bootstrap_replicates}}{Optional number of bootstrap trees.}
+
+    \item{\code{threads}}{Number of threads.}
+
+    \item{\code{seed}}{Optional random seed.}
+
+    \item{\code{executable}}{RAxML-NG executable name or path.}
+
+    \item{\code{run_args}}{Additional named RAxML-NG arguments.}
+  }
+  \if{html}{\out{</div>}}
+}
 \section{Methods}{
 \subsection{Public methods}{
   \itemize{
@@ -25,9 +56,18 @@ RAxML-NG tool configuration
 \if{html}{\out{<a id="method-RaxmlNgToolConfig-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-RaxmlNgToolConfig-initialize}{}}}
 \subsection{\code{RaxmlNgToolConfig$new()}}{
+  Create a validated RAxML-NG configuration. Users should call
+\code{\link[=conf_raxml_ng]{conf_raxml_ng()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RaxmlNgToolConfig$new(values)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{values}}{A named list of RAxML-NG configuration values.}
+    }
     \if{html}{\out{</div>}}
   }
 }

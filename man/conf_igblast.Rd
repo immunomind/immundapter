@@ -54,6 +54,13 @@ tool_igblast(config = conf_igblast())
 \code{conf_igblast()} validates IgBLAST parameters. \code{tool_igblast()} creates the
 adapter from that configuration.
 }
+\section{Development status}{
+
+Configuration, installation help, and installation checks are available.
+Running IgBLAST, reading its results, annotating \code{ImmunData}, and returning
+citation metadata are planned for the next version.
+}
+
 \seealso{
 \url{https://bioconductor.org/packages/release/bioc/manuals/igblastr/man/igblastr.pdf}
 }

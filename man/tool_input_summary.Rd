@@ -12,3 +12,4 @@ run-directory creation, and immutable \code{ToolRun} construction. Concrete tool
 validate and normalize their supported input types, execute the external
 tool, and select the concrete run class that parses their results.
 }
+\keyword{internal}

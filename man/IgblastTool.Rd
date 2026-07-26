@@ -28,9 +28,18 @@ IgBLAST adapter skeleton
 \if{html}{\out{<a id="method-IgblastTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-IgblastTool-initialize}{}}}
 \subsection{\code{IgblastTool$new()}}{
+  Create an IgBLAST adapter skeleton. Users should call \code{\link[=tool_igblast]{tool_igblast()}}
+instead. Execution support is planned for the next version.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{IgblastTool$new(config = conf_igblast())}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{config}}{An \link{IgblastToolConfig} returned by \code{\link[=conf_igblast]{conf_igblast()}}.}
+    }
     \if{html}{\out{</div>}}
   }
 }
