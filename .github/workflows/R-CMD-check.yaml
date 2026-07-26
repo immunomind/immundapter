@@ -1,0 +1,83 @@
+name: R CMD check
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install tcrdist3
+        run: python -m pip install tcrdist3
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::rcmdcheck
+          needs: check
+
+      - name: Install RAxML-NG
+        env:
+          RAXML_NG_VERSION: 2.0.2
+        run: |
+          curl --fail --location \
+            "https://github.com/amkozlov/raxml-ng/releases/download/${RAXML_NG_VERSION}/raxml-ng_v${RAXML_NG_VERSION}_linux_x86_64.zip" \
+            --output "${RUNNER_TEMP}/raxml-ng.zip"
+          unzip -j "${RUNNER_TEMP}/raxml-ng.zip" raxml-ng \
+            -d "${RUNNER_TEMP}/raxml-ng"
+          chmod +x "${RUNNER_TEMP}/raxml-ng/raxml-ng"
+          echo "${RUNNER_TEMP}/raxml-ng" >> "${GITHUB_PATH}"
+
+      - name: Install IgBLAST
+        shell: Rscript {0}
+        run: |
+          if (!igblastr::has_igblast()) {
+            igblastr::install_igblast()
+          }
+
+      - name: Install immundapter
+        run: R CMD INSTALL .
+
+      - name: Check external tools
+        shell: Rscript {0}
+        run: |
+          library(immundapter)
+
+          tools <- list(
+            tool_immgliph(),
+            tool_raxml_ng(),
+            tool_tcrdist3(conf_tcrdist3(python = "python")),
+            tool_igblast()
+          )
+
+          stopifnot(all(vapply(tools, function(tool) tool$check(), logical(1))))
+
+      # R CMD check will discover testthat tests automatically when they are added.
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          args: 'c("--no-manual", "--no-examples")'
+          error-on: '"error"'

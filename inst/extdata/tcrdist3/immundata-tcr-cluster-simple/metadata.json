@@ -1,0 +1,59 @@
+{
+  "format_version": 2,
+  "package_version": "0.0.7.9000",
+  "schema_receptor": {
+    "features": ["v_call", "j_call", "junction_aa"],
+    "chains": "TRB"
+  },
+  "schema_repertoire": null,
+  "schema_strata": null,
+  "repertoires": null,
+  "producer": {
+    "function": "read_repertoires"
+  },
+  "snapshot_id": "imd_20260727T180401Z_2vct1844",
+  "lineage": [
+    {
+      "event": "ingestion",
+      "created_at": "2026-07-27T18:04:01Z",
+      "snapshot_id": "imd_20260727T180401Z_2vct1844",
+      "producer": {
+        "function": "read_repertoires"
+      },
+      "inputs": {
+        "files": "tcr-cluster-simple.tsv",
+        "manifest_joined": false,
+        "enforce_schema": true
+      },
+      "args": {
+        "barcode_col": "cell_id",
+        "count_col": null,
+        "locus_col": "locus",
+        "umi_col": "duplicate_count",
+        "manifest_file_col": "file"
+      },
+      "column_lineage": {
+        "renamed": {
+          "requested": null,
+          "applied": null,
+          "not_found": null
+        },
+        "dropped": {
+          "applied": []
+        }
+      },
+      "pipeline": {
+        "preprocess": null,
+        "postprocess": null
+      }
+    }
+  ],
+  "provenance": {
+    "home_path": null,
+    "current_path": null,
+    "snapshot_root": null,
+    "artifacts_root": null,
+    "artifacts_path": null
+  },
+  "extensions": []
+}
