@@ -13,13 +13,24 @@ make_test_tool <- function(name = "test-tool") {
   )
 
   config_class <- TestToolConfig
+  TestToolRun <- R6::R6Class(
+    classname = paste0("TestToolRun", sample.int(1000000L, 1L)),
+    inherit = ToolRun,
+    cloneable = FALSE,
+    private = list(
+      results_impl = function() {
+        ToolResults$new(self)
+      }
+    )
+  )
+  run_class <- TestToolRun
   TestTool <- R6::R6Class(
     classname = paste0("TestTool", sample.int(1000000L, 1L)),
     inherit = AbstractTool,
     cloneable = FALSE,
     public = list(
       initialize = function(config = config_class$new()) {
-        super$initialize(name, config)
+        super$initialize(name, config, run_class)
       }
     ),
     private = list(
@@ -63,7 +74,7 @@ test_that("AbstractTool runs with a file and explicit output directory", {
 
   run <- fixture$tool$run(input, output_dir = output_dir)
 
-  expect_s3_class(run, "ToolRun")
+  expect_true(inherits(run, "ToolRun"))
   expect_equal(run$status, "success")
   expect_equal(run$input$type, "files")
   expect_equal(unname(run$input$paths), as.character(fs::path_abs(input)))
@@ -72,6 +83,42 @@ test_that("AbstractTool runs with a file and explicit output directory", {
     as.character(fs::path_abs(output_dir))
   )
   expect_true(fs::dir_exists(run$path))
+  expect_error(
+    run$status <- "partial",
+    "`status` is read-only.",
+    fixed = TRUE
+  )
+  expect_true(inherits(run$results(), "ToolResults"))
+})
+
+test_that("ToolResults always exposes an informative annotate method", {
+  root <- withr::local_tempdir()
+  run <- ToolRun$new(list(
+    status = "success",
+    tool = "test-tool",
+    path = root,
+    artifacts = list(),
+    config = list(),
+    input = list(type = "object")
+  ))
+  TestImmunData <- R6::R6Class(
+    classname = paste0("ImmunData", sample.int(1000000L, 1L))
+  )
+  idata <- TestImmunData$new()
+  class(idata) <- unique(c("ImmunData", class(idata)))
+  results <- ToolResults$new(run)
+
+  expect_error(
+    run$results(),
+    "must implement `$results()` for this run type",
+    fixed = TRUE
+  )
+  expect_true("annotate" %in% names(results))
+  expect_error(
+    results$annotate(idata),
+    "cannot annotate `ImmunData`",
+    class = "immundapter_unannotatable_results"
+  )
 })
 
 test_that("AbstractTool defaults file runs directly to the user home", {

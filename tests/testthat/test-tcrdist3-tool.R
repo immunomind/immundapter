@@ -51,13 +51,22 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
   output_dir <- withr::local_tempdir()
 
   file_run <- tool$run(fixture, output_dir = output_dir)
+  expect_true(inherits(file_run, "Tcrdist3Run"))
   expect_true(all(vapply(
     file_run$artifacts,
     fs::file_exists,
     logical(1L)
   )))
-  file_results <- tool$results(file_run)
-  file_clusters <- file_results |>
+  file_results <- file_run$results()
+  expect_true(inherits(file_results, "Tcrdist3Results"))
+  expect_identical(file_results$run, file_run)
+  expect_identical(file_results$distances, file_run$artifacts$distances)
+  expect_error(
+    file_results$distances <- "replacement.npy",
+    "`distances` is read-only.",
+    fixed = TRUE
+  )
+  file_clusters <- file_results$clusters |>
     dplyr::select(
       input_id,
       tcrdist_cluster_id,
@@ -79,18 +88,12 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
     file_clusters$tcrdist_cluster_id[file_clusters$input_id == "tcr1"] ==
       file_clusters$tcrdist_cluster_id[file_clusters$input_id == "tcr4"]
   )
-  file_edges <- duckplyr::read_csv_duckdb(
-    file_run$artifacts$edges,
-    options = list(delim = "\t")
-  ) |>
+  file_edges <- file_results$edges |>
     dplyr::collect() |>
     as.data.frame()
   expect_equal(nrow(file_edges), 7L)
 
-  file_mapping <- duckplyr::read_csv_duckdb(
-    file_run$artifacts$mapping,
-    options = list(delim = "\t")
-  ) |>
+  file_mapping <- file_results$mapping |>
     dplyr::collect() |>
     as.data.frame()
 
@@ -123,8 +126,8 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
 
   idata <- immundata::read_immundata(snapshot, verbose = FALSE)
   idata_run <- tool$run(idata, output_dir = output_dir)
-  idata_results <- tool$results(idata_run)
-  annotated <- tool$annotate(idata, idata_results)
+  idata_results <- idata_run$results()
+  annotated <- idata_results$annotate(idata)
   idata_clusters <- annotated$annotations |>
     dplyr::select(
       expected_cluster,
@@ -178,24 +181,18 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
   )
   paired_tool <- tool_tcrdist3(paired_config)
   paired_run <- paired_tool$run(paired_idata, output_dir = output_dir)
-  paired_results <- paired_tool$results(paired_run)
-  paired_mapping <- duckplyr::read_csv_duckdb(
-    paired_run$artifacts$mapping,
-    options = list(delim = "\t")
-  ) |>
+  paired_results <- paired_run$results()
+  paired_mapping <- paired_results$mapping |>
     dplyr::collect() |>
     as.data.frame()
-  paired_annotated <- paired_tool$annotate(
-    paired_idata,
-    paired_results
-  )
+  paired_annotated <- paired_results$annotate(paired_idata)
   paired_annotations_result <- paired_annotated$annotations |>
     dplyr::select(cell_id, imd_receptor_id, tcrdist_cluster_id) |>
     dplyr::collect() |>
     as.data.frame()
 
   expect_equal(nrow(dplyr::collect(paired_idata$receptors)), 2L)
-  expect_equal(nrow(dplyr::collect(paired_results)), 2L)
+  expect_equal(nrow(dplyr::collect(paired_results$clusters)), 2L)
   expect_equal(nrow(paired_mapping), 2L)
   expect_equal(
     length(unique(paired_mapping$deduplicated_receptor_id)),

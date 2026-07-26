@@ -14,21 +14,21 @@
 #'   how tcrdist3 should run. It contains no repertoire data.}
 #'   \item{Tool}{[tool_tcrdist3()] wraps a configuration in a
 #'   [Tcrdist3Tool]. The tool can be reused for multiple inputs. It provides
-#'   `$help()`, `$check()`, `$run()`, `$results()`, and `$annotate()`.}
+#'   `$help()`, `$check()`, and `$run()`.}
 #'   \item{Run}{`tool$run(input)` executes one analysis and returns a
 #'   `ToolRun`. The run records the configuration, input summary, run
-#'   directory, and paths to every generated artifact.}
-#'   \item{Results}{`tool$results(run)` reads the cluster table as a lazy
-#'   duckplyr table. If the input came from `ImmunData`,
-#'   `tool$annotate(idata, results)` joins those clusters back by
+#'   directory, and paths to every generated artifact. Call `run$results()` to
+#'   parse that specific execution.}
+#'   \item{Results}{`run$results()` returns [Tcrdist3Results], with lazy
+#'   duckplyr `$clusters`, `$mapping`, and `$edges` tables and a `$distances`
+#'   artifact path. `results$annotate(idata)` joins clusters back by
 #'   `imd_receptor_id` and returns a new annotated `ImmunData`.}
 #' }
 #'
 #' In short:
 #'
 #' ```
-#' config -> tool -> run -> results
-#'                        -> annotated ImmunData
+#' config -> tool -> run -> results -> annotated ImmunData
 #' ```
 #'
 #' @section Choosing single- or paired-chain distance:
@@ -159,8 +159,8 @@
 #' )
 #'
 #' # 4. Read the cluster table.
-#' clusters <- tool$results(run)
-#' dplyr::collect(clusters)
+#' results <- run$results()
+#' dplyr::collect(results$clusters)
 #'
 #' # The same configuration can run on ImmunData.
 #' snapshot <- system.file(
@@ -172,10 +172,10 @@
 #'   idata,
 #'   output_dir = file.path(tempdir(), "tcrdist3-immundata")
 #' )
-#' idata_clusters <- tool$results(idata_run)
+#' idata_results <- idata_run$results()
 #'
 #' # 5. Join receptor-level clusters back to all annotation rows.
-#' annotated <- tool$annotate(idata, idata_clusters)
+#' annotated <- idata_results$annotate(idata)
 #'
 #' # Build paired TRA/TRB ImmunData from the bundled long-form example.
 #' paired_input <- system.file(
@@ -273,7 +273,8 @@ tool_tcrdist3 <- function(config = conf_tcrdist3()) {
 #' `Tcrdist3ToolConfig` is an immutable analysis recipe. It contains validated
 #' tcrdist3 settings but no input data or results. Create it with
 #' [conf_tcrdist3()], then pass it to [tool_tcrdist3()]. A `ToolRun` stores a
-#' plain-list snapshot of the configuration used for that run.
+#' plain-list snapshot of the configuration used for that run and exposes its
+#' results through `$results()`.
 #'
 #' @field organism Validated organism supplied to `TCRrep`.
 #' @field chains Validated TCR chains.
@@ -358,7 +359,7 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #' `Tcrdist3Tool` connects a [Tcrdist3ToolConfig] to input data and the Python
 #' tcrdist3 runner. Create it with [tool_tcrdist3()], then call `$run()` for
 #' each input. The tool itself contains neither the input nor results; every
-#' execution returns a separate `ToolRun`.
+#' execution returns a separate [Tcrdist3Run].
 #'
 #' See [tcrdist3] for the complete workflow, input formats, single- versus
 #' paired-chain configuration, and clustering algorithm.
@@ -379,25 +380,17 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #'   succeeds and `FALSE` otherwise.}
 #'   \item{`$run(input, config = NULL, output_dir = NULL)`}{Normalize a text
 #'   file or [immundata::ImmunData], execute tcrdist3, cluster the combined
-#'   distance matrix, and return a `ToolRun`. Pass `config` to override the
+#'   distance matrix, and return a [Tcrdist3Run]. Pass `config` to override the
 #'   tool's default configuration for this run only. If `output_dir` is
 #'   omitted, file inputs use the user home and persisted `ImmunData` inputs
 #'   use the current snapshot's artifact directory.}
-#'   \item{`$results(run, output = c("duckplyr_df", "df"))`}{Read the cluster
-#'   artifact from a `ToolRun`. The default is a lazy duckplyr table; `"df"`
-#'   collects it as a base data frame.}
-#'   \item{`$annotate(idata, results, ...)`}{Join
-#'   `tcrdist_cluster_id` and `tcrdist_cluster_size` to an `ImmunData` object.
-#'   For an `ImmunData` run, result `input_id` is the original
-#'   `imd_receptor_id`, so one receptor-level assignment is propagated to all
-#'   annotation rows belonging to that receptor. Additional arguments are
-#'   passed to [immundata::annotate_receptors()].}
 #'   \item{`$citation()`}{Reserved for citation metadata; currently reports
 #'   that citation support is not implemented.}
 #' }
 #'
-#' @section The ToolRun:
-#' `$run()` creates a new run directory and returns a list-like `ToolRun` with:
+#' @section Runs and results:
+#' `$run()` creates a new run directory and returns an immutable
+#' [Tcrdist3Run] with:
 #' \describe{
 #'   \item{`status`}{`"success"` after the external process completes.}
 #'   \item{`tool`}{The tool name, `"tcrdist3"`.}
@@ -406,6 +399,15 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #'   \item{`input`}{A provenance-safe summary of the input.}
 #'   \item{`artifacts`}{Paths to the generated files described below.}
 #' }
+#'
+#' Call `run$results()` to obtain immutable [Tcrdist3Results]. Its
+#' `$clusters`, `$mapping`, and `$edges` fields are lazy duckplyr tables, and
+#' `$distances` is the NumPy matrix path. Call `results$annotate(idata, ...)`
+#' to join `tcrdist_cluster_id` and `tcrdist_cluster_size` to `ImmunData`.
+#' For an `ImmunData` run, result `input_id` is the original
+#' `imd_receptor_id`, so one receptor-level assignment is propagated to all
+#' annotation rows belonging to that receptor. Additional arguments are
+#' passed to [immundata::annotate_receptors()].
 #'
 #' @section Artifacts:
 #' `run$artifacts` contains:
@@ -443,7 +445,7 @@ Tcrdist3Tool <- R6::R6Class(
     #' @param config A [Tcrdist3ToolConfig] returned by [conf_tcrdist3()].
     initialize = function(config = conf_tcrdist3()) {
       checkmate::assert_r6(config, classes = "Tcrdist3ToolConfig")
-      super$initialize("tcrdist3", config)
+      super$initialize("tcrdist3", config, Tcrdist3Run)
     }
   ),
   private = list(
@@ -756,34 +758,6 @@ Tcrdist3Tool <- R6::R6Class(
         distances = distances_path,
         stdout = stdout_path,
         stderr = stderr_path
-      )
-    },
-    results_impl = function(run) {
-      checkmate::assert_file_exists(run$artifacts$clusters)
-      duckplyr::read_csv_duckdb(
-        run$artifacts$clusters,
-        options = list(delim = "\t")
-      )
-    },
-    annotate_impl = function(idata, results, ...) {
-      receptor_col <- immundata::imd_schema("receptor")
-      annotations <- results |>
-        dplyr::select(
-          dplyr::all_of(c(
-            "input_id",
-            "tcrdist_cluster_id",
-            "tcrdist_cluster_size"
-          ))
-        ) |>
-        dplyr::rename(
-          !!receptor_col := dplyr::all_of("input_id")
-        )
-
-      immundata::annotate_receptors(
-        idata = idata,
-        annotations = annotations,
-        annot_col = receptor_col,
-        ...
       )
     }
   )
