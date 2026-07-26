@@ -24,8 +24,9 @@
 #'   [Tcrdist3ClusterResults] or [Tcrdist3DistanceResults]. Both provide a lazy
 #'   duckplyr `$mapping` and a `$distances` artifact path. Cluster results also
 #'   provide `$clusters` and `$edges`; their `$annotate(idata)` joins clusters
-#'   back by `imd_receptor_id`. Distance results cannot annotate and explain
-#'   how to rerun in cluster mode.}
+#'   back by `imd_receptor_id` as `imd_group_id`, replacing any existing
+#'   grouping. Distance results cannot annotate and explain how to rerun in
+#'   cluster mode.}
 #' }
 #'
 #' In short:
@@ -181,7 +182,8 @@
 #' )
 #' idata_results <- idata_run$results()
 #'
-#' # 5. Join receptor-level clusters back to all annotation rows.
+#' # 5. Join receptor-level clusters back as `imd_group_id`.
+#' # Any existing `imd_group_id` assignment is replaced.
 #' annotated <- idata_results$annotate(idata)
 #'
 #' # Distance-only runs stop after creating the mapping and distance matrix.
@@ -425,11 +427,12 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #' [Tcrdist3ClusterResults] and [Tcrdist3DistanceResults] expose a lazy
 #' duckplyr `$mapping` and a `$distances` NumPy matrix path. Cluster results
 #' additionally expose lazy `$clusters` and `$edges` tables. Their
-#' `$annotate(idata, ...)` joins `tcrdist_cluster_id` and
-#' `tcrdist_cluster_size` to `ImmunData`. For an `ImmunData` run, result
-#' `input_id` is the original `imd_receptor_id`, so one receptor-level
-#' assignment is propagated to all annotation rows belonging to that receptor.
-#' Additional arguments are passed to [immundata::annotate_receptors()].
+#' `$annotate(idata, ...)` joins the cluster assignment as `imd_group_id` and
+#' also joins `tcrdist_cluster_size`. An existing `imd_group_id` is replaced.
+#' For an `ImmunData` run, result `input_id` is the original
+#' `imd_receptor_id`, so one receptor-level assignment is propagated to all
+#' annotation rows belonging to that receptor. Additional arguments are passed
+#' to [immundata::annotate_receptors()].
 #'
 #' Distance results also expose `$annotate()` for a uniform result interface,
 #' but it raises an actionable error: distances alone are not receptor

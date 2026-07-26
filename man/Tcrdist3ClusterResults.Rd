@@ -6,7 +6,8 @@
 \description{
 Cluster results add lazy duckplyr cluster and edge tables to the common
 tcrdist3 outputs. \verb{$annotate(idata)} joins receptor-level cluster
-assignments to an \code{ImmunData} object.
+assignments to an \code{ImmunData} object as \code{imd_group_id}, replacing any
+existing grouping.
 }
 \keyword{internal}
 \section{Super classes}{

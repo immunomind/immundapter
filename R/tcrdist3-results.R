@@ -61,7 +61,8 @@ Tcrdist3DistanceResults <- R6::R6Class(
 #'
 #' Cluster results add lazy duckplyr cluster and edge tables to the common
 #' tcrdist3 outputs. `$annotate(idata)` joins receptor-level cluster
-#' assignments to an `ImmunData` object.
+#' assignments to an `ImmunData` object as `imd_group_id`, replacing any
+#' existing grouping.
 #'
 #' @keywords internal
 Tcrdist3ClusterResults <- R6::R6Class(
@@ -89,6 +90,7 @@ Tcrdist3ClusterResults <- R6::R6Class(
   private = list(
     annotate_impl = function(idata, ...) {
       receptor_col <- immundata::imd_schema("receptor")
+      group_col <- immundata::imd_schema("group")
       annotations <- self$clusters |>
         dplyr::select(
           dplyr::all_of(c(
@@ -98,13 +100,15 @@ Tcrdist3ClusterResults <- R6::R6Class(
           ))
         ) |>
         dplyr::rename(
-          !!receptor_col := dplyr::all_of("input_id")
+          !!receptor_col := dplyr::all_of("input_id"),
+          !!group_col := dplyr::all_of("tcrdist_cluster_id")
         )
 
       immundata::annotate_receptors(
         idata = idata,
         annotations = annotations,
         annot_col = receptor_col,
+        conflicts = "replace",
         ...
       )
     }
