@@ -1,9 +1,10 @@
-#' Cluster T-cell receptors with tcrdist3
+#' Calculate T-cell receptor distances and clusters with tcrdist3
 #'
 #' tcrdist3 measures similarity between T-cell receptors from their CDR3
 #' amino-acid sequences and V/J genes. This adapter prepares R data for the
-#' Python `tcrdist3` package, calculates receptor distances, turns the distance
-#' matrix into clusters, and brings the cluster assignments back into R.
+#' Python `tcrdist3` package and calculates receptor distances. In cluster
+#' mode, it also turns the distance matrix into clusters and brings the cluster
+#' assignments back into R.
 #'
 #' @section The objects and how they connect:
 #' A typical analysis uses four objects:
@@ -19,16 +20,20 @@
 #'   `ToolRun`. The run records the configuration, input summary, run
 #'   directory, and paths to every generated artifact. Call `run$results()` to
 #'   parse that specific execution.}
-#'   \item{Results}{`run$results()` returns [Tcrdist3Results], with lazy
-#'   duckplyr `$clusters`, `$mapping`, and `$edges` tables and a `$distances`
-#'   artifact path. `results$annotate(idata)` joins clusters back by
-#'   `imd_receptor_id` and returns a new annotated `ImmunData`.}
+#'   \item{Results}{`run$results()` returns either
+#'   [Tcrdist3ClusterResults] or [Tcrdist3DistanceResults]. Both provide a lazy
+#'   duckplyr `$mapping` and a `$distances` artifact path. Cluster results also
+#'   provide `$clusters` and `$edges`; their `$annotate(idata)` joins clusters
+#'   back by `imd_receptor_id`. Distance results cannot annotate and explain
+#'   how to rerun in cluster mode.}
 #' }
 #'
 #' In short:
 #'
 #' ```
-#' config -> tool -> run -> results -> annotated ImmunData
+#' config -> tool -> run -> results
+#'                              |
+#'                              +-> annotated ImmunData (cluster mode)
 #' ```
 #'
 #' @section Choosing single- or paired-chain distance:
@@ -81,14 +86,15 @@
 #'   `TCRrep` with its own deduplication disabled.
 #'   \item Calculate one pairwise distance matrix per selected chain and add
 #'   the matrices for a multi-chain analysis.
-#'   \item Connect receptor pairs whose combined distance is at most `radius`;
-#'   each connected component becomes a cluster.
-#'   \item Expand cluster assignments, edges, and distances back to the
-#'   original input order.
+#'   \item Expand distances back to the original input order.
+#'   \item In cluster mode, connect receptor pairs whose combined distance is
+#'   at most `radius`; each connected component becomes a cluster, and expand
+#'   cluster assignments and edges back to the original input order.
 #' }
 #'
-#' Clustering is transitive: two receptors in one connected component can have
-#' a direct distance greater than `radius` when other receptors connect them.
+#' In cluster mode, clustering is transitive: two receptors in one connected
+#' component can have a direct distance greater than `radius` when other
+#' receptors connect them.
 #'
 #' @section Managed Python environment:
 #' When `python = NULL`, the tool uses an isolated uv environment under
@@ -98,11 +104,15 @@
 #' prints the uv commands that create the environment and install the supported
 #' tcrdist3 version.
 #'
+#' @param mode Operation performed after distance calculation. `"cluster"`
+#'   creates radius-based cluster assignments and annotatable results;
+#'   `"distance"` returns the distance matrix and receptor mapping without
+#'   clustering.
 #' @param organism Host organism: `"human"` or `"mouse"`. It must match the V/J
 #'   gene names in the input.
 #' @param chains One or two unique chains selected from `"alpha"`, `"beta"`,
 #'   `"gamma"`, and `"delta"`. These are passed to `TCRrep` and determine which
-#'   chain distances contribute to clustering.
+#'   chain distances contribute to the combined distance matrix.
 #' @param cdr3_cols Named character vector mapping every value of `chains` to
 #'   its source CDR3 amino-acid column. For long-form paired `ImmunData`, two
 #'   chains may map to the same source column because `locus` distinguishes
@@ -114,16 +124,13 @@
 #'   its source J-gene column.
 #' @param db_file Germline database passed to
 #'   `tcrdist.repertoire.TCRrep`. tcrdist3 includes the default database.
-#' @param compute_distances Whether `TCRrep` computes pairwise distances when
-#'   it is created. If `FALSE`, the tool computes them in the next step because
-#'   clustering requires the complete matrix.
 #' @param store_all_cdr Whether `TCRrep` retains the CDR-specific distance
 #'   matrices in addition to its per-chain matrices.
 #' @param deduplicate Whether identical normalized receptors are calculated
 #'   once. Results are expanded back to every original `input_id`.
 #' @param cpus Positive integer number of CPUs supplied to `TCRrep`.
 #' @param radius Non-negative integer maximum combined tcrdist for an edge in
-#'   the clustering graph.
+#'   the clustering graph. It is used only when `mode = "cluster"`.
 #' @param python Python executable name or path. `NULL` selects the managed
 #'   tcrdist3 environment described above.
 #' @param run_args Additional named arguments passed to `TCRrep`. The values
@@ -177,6 +184,17 @@
 #' # 5. Join receptor-level clusters back to all annotation rows.
 #' annotated <- idata_results$annotate(idata)
 #'
+#' # Distance-only runs stop after creating the mapping and distance matrix.
+#' distance_tool <- tool_tcrdist3(conf_tcrdist3(mode = "distance"))
+#' distance_run <- distance_tool$run(
+#'   idata,
+#'   output_dir = file.path(tempdir(), "tcrdist3-distance")
+#' )
+#' distance_results <- distance_run$results()
+#' distance_results$distances
+#' # distance_results$annotate(idata) gives an actionable error because there
+#' # are no receptor-level annotations in a distance-only result.
+#'
 #' # Build paired TRA/TRB ImmunData from the bundled long-form example.
 #' paired_input <- system.file(
 #'   "extdata", "tcrdist3", "tcr-cluster-paired-simple.tsv",
@@ -217,19 +235,20 @@
 #'   \url{https://tcrdist3.readthedocs.io/en/latest/inputs.html},
 #'   \url{https://tcrdist3.readthedocs.io/en/latest/}
 #' @export
-conf_tcrdist3 <- function(organism = "human",
+conf_tcrdist3 <- function(mode = c("cluster", "distance"),
+                          organism = "human",
                           chains = "beta",
                           cdr3_cols = c(beta = "junction_aa"),
                           v_gene_cols = c(beta = "v_call"),
                           j_gene_cols = c(beta = "j_call"),
                           db_file = "alphabeta_gammadelta_db.tsv",
-                          compute_distances = FALSE,
                           store_all_cdr = TRUE,
                           deduplicate = TRUE,
                           cpus = 1L,
                           radius = 24L,
                           python = NULL,
                           run_args = list()) {
+  mode <- match.arg(mode)
   if (is.null(python)) {
     python <- immundapter_data_path(
       "environments",
@@ -243,13 +262,13 @@ conf_tcrdist3 <- function(organism = "human",
   }
 
   Tcrdist3ToolConfig$new(list(
+    mode = mode,
     organism = organism,
     chains = chains,
     cdr3_cols = cdr3_cols,
     v_gene_cols = v_gene_cols,
     j_gene_cols = j_gene_cols,
     db_file = db_file,
-    compute_distances = compute_distances,
     store_all_cdr = store_all_cdr,
     deduplicate = deduplicate,
     cpus = cpus,
@@ -276,13 +295,13 @@ tool_tcrdist3 <- function(config = conf_tcrdist3()) {
 #' plain-list snapshot of the configuration used for that run and exposes its
 #' results through `$results()`.
 #'
+#' @field mode Whether the run produces clusters or distances only.
 #' @field organism Validated organism supplied to `TCRrep`.
 #' @field chains Validated TCR chains.
 #' @field cdr3_cols Named chain-to-CDR3-column mapping.
 #' @field v_gene_cols Named chain-to-V-gene-column mapping.
 #' @field j_gene_cols Named chain-to-J-gene-column mapping.
 #' @field db_file tcrdist3 germline database.
-#' @field compute_distances Logical initialization strategy for `TCRrep`.
 #' @field store_all_cdr Logical CDR-matrix retention setting.
 #' @field deduplicate Logical receptor deduplication setting.
 #' @field cpus Number of CPUs used by tcrdist3.
@@ -294,13 +313,13 @@ Tcrdist3ToolConfig <- R6::R6Class(
   inherit = AbstractConfig,
   cloneable = FALSE,
   public = list(
+    mode = NULL,
     organism = NULL,
     chains = NULL,
     cdr3_cols = NULL,
     v_gene_cols = NULL,
     j_gene_cols = NULL,
     db_file = NULL,
-    compute_distances = NULL,
     store_all_cdr = NULL,
     deduplicate = NULL,
     cpus = NULL,
@@ -313,6 +332,7 @@ Tcrdist3ToolConfig <- R6::R6Class(
     #' @param values Named list of configuration values.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
+      checkmate::assert_choice(values$mode, c("cluster", "distance"))
       checkmate::assert_choice(values$organism, c("human", "mouse"))
       checkmate::assert_character(
         values$chains,
@@ -340,7 +360,6 @@ Tcrdist3ToolConfig <- R6::R6Class(
         permutation.of = values$chains
       )
       checkmate::assert_string(values$db_file)
-      checkmate::assert_flag(values$compute_distances)
       checkmate::assert_flag(values$store_all_cdr)
       checkmate::assert_flag(values$deduplicate)
       checkmate::assert_int(values$cpus, lower = 1L)
@@ -379,11 +398,13 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #'   `tcrdist`. Report the Python path and version. Return `TRUE` when the check
 #'   succeeds and `FALSE` otherwise.}
 #'   \item{`$run(input, config = NULL, output_dir = NULL)`}{Normalize a text
-#'   file or [immundata::ImmunData], execute tcrdist3, cluster the combined
-#'   distance matrix, and return a [Tcrdist3Run]. Pass `config` to override the
-#'   tool's default configuration for this run only. If `output_dir` is
-#'   omitted, file inputs use the user home and persisted `ImmunData` inputs
-#'   use the current snapshot's artifact directory.}
+#'   file or [immundata::ImmunData], execute tcrdist3, and return a
+#'   [Tcrdist3Run]. `mode = "cluster"` clusters the combined distance matrix;
+#'   `mode = "distance"` stops after producing the mapping and distance
+#'   matrix. Pass `config` to override the tool's default configuration for
+#'   this run only. If `output_dir` is omitted, file inputs use the user home
+#'   and persisted `ImmunData` inputs use the current snapshot's artifact
+#'   directory.}
 #'   \item{`$citation()`}{Reserved for citation metadata; currently reports
 #'   that citation support is not implemented.}
 #' }
@@ -400,14 +421,19 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #'   \item{`artifacts`}{Paths to the generated files described below.}
 #' }
 #'
-#' Call `run$results()` to obtain immutable [Tcrdist3Results]. Its
-#' `$clusters`, `$mapping`, and `$edges` fields are lazy duckplyr tables, and
-#' `$distances` is the NumPy matrix path. Call `results$annotate(idata, ...)`
-#' to join `tcrdist_cluster_id` and `tcrdist_cluster_size` to `ImmunData`.
-#' For an `ImmunData` run, result `input_id` is the original
-#' `imd_receptor_id`, so one receptor-level assignment is propagated to all
-#' annotation rows belonging to that receptor. Additional arguments are
-#' passed to [immundata::annotate_receptors()].
+#' Call `run$results()` to obtain immutable results. Both
+#' [Tcrdist3ClusterResults] and [Tcrdist3DistanceResults] expose a lazy
+#' duckplyr `$mapping` and a `$distances` NumPy matrix path. Cluster results
+#' additionally expose lazy `$clusters` and `$edges` tables. Their
+#' `$annotate(idata, ...)` joins `tcrdist_cluster_id` and
+#' `tcrdist_cluster_size` to `ImmunData`. For an `ImmunData` run, result
+#' `input_id` is the original `imd_receptor_id`, so one receptor-level
+#' assignment is propagated to all annotation rows belonging to that receptor.
+#' Additional arguments are passed to [immundata::annotate_receptors()].
+#'
+#' Distance results also expose `$annotate()` for a uniform result interface,
+#' but it raises an actionable error: distances alone are not receptor
+#' annotations, so the analysis must be rerun with `mode = "cluster"`.
 #'
 #' @section Artifacts:
 #' `run$artifacts` contains:
@@ -415,13 +441,14 @@ Tcrdist3ToolConfig <- R6::R6Class(
 #'   \item{`input`}{The normalized table passed to the runner. It contains
 #'   `input_id` and the tcrdist3 chain columns.}
 #'   \item{`config`}{The resolved runner configuration as JSON.}
-#'   \item{`clusters`}{One row per original TCR with `input_id`, normalized
-#'   chain columns, `tcrdist_cluster_id`, and `tcrdist_cluster_size`.}
+#'   \item{`clusters`}{Cluster mode only. One row per original TCR with
+#'   `input_id`, normalized chain columns, `tcrdist_cluster_id`, and
+#'   `tcrdist_cluster_size`.}
 #'   \item{`mapping`}{Mapping from each original `input_id` to the
 #'   deduplicated receptor used for distance calculation. Several original IDs
 #'   can map to one deduplicated receptor.}
-#'   \item{`edges`}{Pairs of TCRs whose combined distance is at most
-#'   `config$radius`, expanded to original input IDs.}
+#'   \item{`edges`}{Cluster mode only. Pairs of TCRs whose combined distance is
+#'   at most `config$radius`, expanded to original input IDs.}
 #'   \item{`distances`}{Combined dense pairwise distance matrix in original
 #'   input order, in NumPy `.npy` format.}
 #'   \item{`stdout`, `stderr`}{Captured Python process logs.}
@@ -697,10 +724,10 @@ Tcrdist3Tool <- R6::R6Class(
       )
       jsonlite::write_json(
         list(
+          mode = config$mode,
           organism = config$organism,
           chains = config$chains,
           db_file = config$db_file,
-          compute_distances = config$compute_distances,
           store_all_cdr = config$store_all_cdr,
           deduplicate = config$deduplicate,
           cpus = config$cpus,
@@ -749,16 +776,19 @@ Tcrdist3Tool <- R6::R6Class(
         ))
       }
 
-      list(
+      artifacts <- list(
         input = input_path,
         config = config_path,
-        clusters = clusters_path,
         mapping = mapping_path,
-        edges = edges_path,
         distances = distances_path,
         stdout = stdout_path,
         stderr = stderr_path
       )
+      if (identical(config$mode, "cluster")) {
+        artifacts$clusters <- clusters_path
+        artifacts$edges <- edges_path
+      }
+      artifacts
     }
   )
 )

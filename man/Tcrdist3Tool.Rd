@@ -7,7 +7,7 @@
 \code{Tcrdist3Tool} connects a \link{Tcrdist3ToolConfig} to input data and the Python
 tcrdist3 runner. Create it with \code{\link[=tool_tcrdist3]{tool_tcrdist3()}}, then call \verb{$run()} for
 each input. The tool itself contains neither the input nor results; every
-execution returns a separate \code{ToolRun}.
+execution returns a separate \link{Tcrdist3Run}.
 
 See \link{tcrdist3} for the complete workflow, input formats, single- versus
 paired-chain configuration, and clustering algorithm.
@@ -30,28 +30,22 @@ create the managed Python environment and install tcrdist3.}
 \code{tcrdist}. Report the Python path and version. Return \code{TRUE} when the check
 succeeds and \code{FALSE} otherwise.}
 \item{\verb{$run(input, config = NULL, output_dir = NULL)}}{Normalize a text
-file or \link[immundata:ImmunData]{immundata::ImmunData}, execute tcrdist3, cluster the combined
-distance matrix, and return a \code{ToolRun}. Pass \code{config} to override the
-tool's default configuration for this run only. If \code{output_dir} is
-omitted, file inputs use the user home and persisted \code{ImmunData} inputs
-use the current snapshot's artifact directory.}
-\item{\verb{$results(run, output = c("duckplyr_df", "df"))}}{Read the cluster
-artifact from a \code{ToolRun}. The default is a lazy duckplyr table; \code{"df"}
-collects it as a base data frame.}
-\item{\verb{$annotate(idata, results, ...)}}{Join
-\code{tcrdist_cluster_id} and \code{tcrdist_cluster_size} to an \code{ImmunData} object.
-For an \code{ImmunData} run, result \code{input_id} is the original
-\code{imd_receptor_id}, so one receptor-level assignment is propagated to all
-annotation rows belonging to that receptor. Additional arguments are
-passed to \code{\link[immundata:annotate_receptors]{immundata::annotate_receptors()}}.}
+file or \link[immundata:ImmunData]{immundata::ImmunData}, execute tcrdist3, and return a
+\link{Tcrdist3Run}. \code{mode = "cluster"} clusters the combined distance matrix;
+\code{mode = "distance"} stops after producing the mapping and distance
+matrix. Pass \code{config} to override the tool's default configuration for
+this run only. If \code{output_dir} is omitted, file inputs use the user home
+and persisted \code{ImmunData} inputs use the current snapshot's artifact
+directory.}
 \item{\verb{$citation()}}{Reserved for citation metadata; currently reports
 that citation support is not implemented.}
 }
 }
 
-\section{The ToolRun}{
+\section{Runs and results}{
 
-\verb{$run()} creates a new run directory and returns a list-like \code{ToolRun} with:
+\verb{$run()} creates a new run directory and returns an immutable
+\link{Tcrdist3Run} with:
 \describe{
 \item{\code{status}}{\code{"success"} after the external process completes.}
 \item{\code{tool}}{The tool name, \code{"tcrdist3"}.}
@@ -60,6 +54,20 @@ that citation support is not implemented.}
 \item{\code{input}}{A provenance-safe summary of the input.}
 \item{\code{artifacts}}{Paths to the generated files described below.}
 }
+
+Call \code{run$results()} to obtain immutable results. Both
+\link{Tcrdist3ClusterResults} and \link{Tcrdist3DistanceResults} expose a lazy
+duckplyr \verb{$mapping} and a \verb{$distances} NumPy matrix path. Cluster results
+additionally expose lazy \verb{$clusters} and \verb{$edges} tables. Their
+\verb{$annotate(idata, ...)} joins \code{tcrdist_cluster_id} and
+\code{tcrdist_cluster_size} to \code{ImmunData}. For an \code{ImmunData} run, result
+\code{input_id} is the original \code{imd_receptor_id}, so one receptor-level
+assignment is propagated to all annotation rows belonging to that receptor.
+Additional arguments are passed to \code{\link[immundata:annotate_receptors]{immundata::annotate_receptors()}}.
+
+Distance results also expose \verb{$annotate()} for a uniform result interface,
+but it raises an actionable error: distances alone are not receptor
+annotations, so the analysis must be rerun with \code{mode = "cluster"}.
 }
 
 \section{Artifacts}{
@@ -69,13 +77,14 @@ that citation support is not implemented.}
 \item{\code{input}}{The normalized table passed to the runner. It contains
 \code{input_id} and the tcrdist3 chain columns.}
 \item{\code{config}}{The resolved runner configuration as JSON.}
-\item{\code{clusters}}{One row per original TCR with \code{input_id}, normalized
-chain columns, \code{tcrdist_cluster_id}, and \code{tcrdist_cluster_size}.}
+\item{\code{clusters}}{Cluster mode only. One row per original TCR with
+\code{input_id}, normalized chain columns, \code{tcrdist_cluster_id}, and
+\code{tcrdist_cluster_size}.}
 \item{\code{mapping}}{Mapping from each original \code{input_id} to the
 deduplicated receptor used for distance calculation. Several original IDs
 can map to one deduplicated receptor.}
-\item{\code{edges}}{Pairs of TCRs whose combined distance is at most
-\code{config$radius}, expanded to original input IDs.}
+\item{\code{edges}}{Cluster mode only. Pairs of TCRs whose combined distance is
+at most \code{config$radius}, expanded to original input IDs.}
 \item{\code{distances}}{Combined dense pairwise distance matrix in original
 input order, in NumPy \code{.npy} format.}
 \item{\code{stdout}, \code{stderr}}{Captured Python process logs.}
@@ -105,8 +114,8 @@ run <- tool$run(
 )
 
 # 4. Read the cluster table.
-clusters <- tool$results(run)
-dplyr::collect(clusters)
+results <- run$results()
+dplyr::collect(results$clusters)
 
 # The same configuration can run on ImmunData.
 snapshot <- system.file(
@@ -118,10 +127,21 @@ idata_run <- tool$run(
   idata,
   output_dir = file.path(tempdir(), "tcrdist3-immundata")
 )
-idata_clusters <- tool$results(idata_run)
+idata_results <- idata_run$results()
 
 # 5. Join receptor-level clusters back to all annotation rows.
-annotated <- tool$annotate(idata, idata_clusters)
+annotated <- idata_results$annotate(idata)
+
+# Distance-only runs stop after creating the mapping and distance matrix.
+distance_tool <- tool_tcrdist3(conf_tcrdist3(mode = "distance"))
+distance_run <- distance_tool$run(
+  idata,
+  output_dir = file.path(tempdir(), "tcrdist3-distance")
+)
+distance_results <- distance_run$results()
+distance_results$distances
+# distance_results$annotate(idata) gives an actionable error because there
+# are no receptor-level annotations in a distance-only result.
 
 # Build paired TRA/TRB ImmunData from the bundled long-form example.
 paired_input <- system.file(
@@ -171,13 +191,11 @@ paired_run <- paired_tool$run(
     \item \href{#method-Tcrdist3Tool-initialize}{\code{Tcrdist3Tool$new()}}
   }
 }
-\if{html}{\out{<details><summary>Inherited methods</summary>
+\if{html}{\out{<details open><summary>Inherited methods</summary>
 <ul>
-  <li><code>AbstractTool$annotate()</code></li>
   <li><code>AbstractTool$check()</code></li>
   <li><code>AbstractTool$citation()</code></li>
   <li><code>AbstractTool$help()</code></li>
-  <li><code>AbstractTool$results()</code></li>
   <li><code>AbstractTool$run()</code></li>
 </ul>
 </details>}}

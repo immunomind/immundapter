@@ -102,7 +102,7 @@ def main():
         "organism": config["organism"],
         "chains": config["chains"],
         "db_file": config["db_file"],
-        "compute_distances": config["compute_distances"],
+        "compute_distances": False,
         "store_all_cdr": config["store_all_cdr"],
         "deduplicate": False,
         "cpus": config["cpus"],
@@ -110,8 +110,7 @@ def main():
         "infer_index_cols": False,
     })
     repertoire = TCRrep(**tcrrep_args)
-    if not config["compute_distances"]:
-        repertoire.compute_distances()
+    repertoire.compute_distances()
 
     distances = None
     for chain in config["chains"]:
@@ -122,29 +121,9 @@ def main():
             else distances + chain_distances
         )
 
-    radius = config["radius"]
-    deduplicated_adjacency = distances <= radius
-    deduplicated_cluster_numbers = stable_cluster_labels(
-        deduplicated_adjacency
-    )
     source_to_deduplicated = mapping[
         "_deduplicated_index"
     ].to_numpy(dtype=int)
-    cluster_numbers = deduplicated_cluster_numbers[
-        source_to_deduplicated
-    ]
-    cluster_ids = np.array([
-        f"cluster_{value:03d}" for value in cluster_numbers
-    ])
-    cluster_sizes = pd.Series(cluster_ids).value_counts()
-
-    clusters = source_df[["input_id", *receptor_cols]].copy()
-    clusters["tcrdist_cluster_id"] = cluster_ids
-    clusters["tcrdist_cluster_size"] = [
-        int(cluster_sizes[value]) for value in cluster_ids
-    ]
-    clusters.to_csv(args.clusters, sep="\t", index=False)
-
     mapping_output = mapping[[
         "input_id",
         "_deduplicated_index",
@@ -161,6 +140,31 @@ def main():
     expanded_distances = distances[
         np.ix_(source_to_deduplicated, source_to_deduplicated)
     ]
+    np.save(args.distances, expanded_distances)
+
+    if config["mode"] == "distance":
+        return
+
+    radius = config["radius"]
+    deduplicated_adjacency = distances <= radius
+    deduplicated_cluster_numbers = stable_cluster_labels(
+        deduplicated_adjacency
+    )
+    cluster_numbers = deduplicated_cluster_numbers[
+        source_to_deduplicated
+    ]
+    cluster_ids = np.array([
+        f"cluster_{value:03d}" for value in cluster_numbers
+    ])
+    cluster_sizes = pd.Series(cluster_ids).value_counts()
+
+    clusters = source_df[["input_id", *receptor_cols]].copy()
+    clusters["tcrdist_cluster_id"] = cluster_ids
+    clusters["tcrdist_cluster_size"] = [
+        int(cluster_sizes[value]) for value in cluster_ids
+    ]
+    clusters.to_csv(args.clusters, sep="\t", index=False)
+
     edge_rows = []
     for left in range(expanded_distances.shape[0]):
         for right in range(left + 1, expanded_distances.shape[1]):
@@ -177,7 +181,6 @@ def main():
         edge_rows,
         columns=["input_id_left", "input_id_right", "distance"],
     ).to_csv(args.edges, sep="\t", index=False)
-    np.save(args.distances, expanded_distances)
 
 
 if __name__ == "__main__":

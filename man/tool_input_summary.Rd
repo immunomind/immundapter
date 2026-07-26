@@ -8,7 +8,7 @@ tool_input_summary(input)
 }
 \description{
 \code{AbstractTool} handles the parts shared by every adapter: configuration,
-run-directory creation, the \code{ToolRun} return value, and result conversion.
-Concrete tools validate and normalize their supported input types and
-implement the remaining private hooks.
+run-directory creation, and immutable \code{ToolRun} construction. Concrete tools
+validate and normalize their supported input types, execute the external
+tool, and select the concrete run class that parses their results.
 }

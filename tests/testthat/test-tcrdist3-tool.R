@@ -2,7 +2,6 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
   testthat::skip_on_cran()
 
   config <- conf_tcrdist3(
-    compute_distances = FALSE,
     store_all_cdr = FALSE,
     radius = 24L
   )
@@ -58,6 +57,7 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
     logical(1L)
   )))
   file_results <- file_run$results()
+  expect_true(inherits(file_results, "Tcrdist3ClusterResults"))
   expect_true(inherits(file_results, "Tcrdist3Results"))
   expect_identical(file_results$run, file_run)
   expect_identical(file_results$distances, file_run$artifacts$distances)
@@ -125,6 +125,62 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
   )
 
   idata <- immundata::read_immundata(snapshot, verbose = FALSE)
+
+  distance_tool <- tool_tcrdist3(conf_tcrdist3(
+    mode = "distance",
+    store_all_cdr = FALSE
+  ))
+  distance_run <- distance_tool$run(fixture, output_dir = output_dir)
+  distance_results <- distance_run$results()
+
+  expect_true(inherits(distance_results, "Tcrdist3DistanceResults"))
+  expect_true(inherits(distance_results, "Tcrdist3Results"))
+  expect_setequal(
+    names(distance_run$artifacts),
+    c(
+      "input",
+      "config",
+      "mapping",
+      "distances",
+      "stdout",
+      "stderr"
+    )
+  )
+  expect_true(all(vapply(
+    distance_run$artifacts,
+    fs::file_exists,
+    logical(1L)
+  )))
+  expect_false(fs::file_exists(fs::path(
+    distance_run$path,
+    "tcrdist3-clusters.tsv"
+  )))
+  expect_false(fs::file_exists(fs::path(
+    distance_run$path,
+    "tcrdist3-edges.tsv"
+  )))
+  expect_equal(
+    nrow(dplyr::collect(distance_results$mapping)),
+    7L
+  )
+  expect_identical(
+    distance_results$distances,
+    distance_run$artifacts$distances
+  )
+  expect_error(
+    distance_results$annotate(idata),
+    paste0(
+      "cannot annotate `ImmunData` because the run produced a distance ",
+      "matrix and receptor mapping"
+    ),
+    class = "immundapter_unannotatable_results"
+  )
+  expect_error(
+    distance_results$annotate(idata),
+    'Rerun tcrdist3 with `mode = "cluster"`',
+    fixed = TRUE
+  )
+
   idata_run <- tool$run(idata, output_dir = output_dir)
   idata_results <- idata_run$results()
   annotated <- idata_results$annotate(idata)
@@ -175,7 +231,6 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
     cdr3_cols = c(alpha = "junction_aa", beta = "junction_aa"),
     v_gene_cols = c(alpha = "v_call", beta = "v_call"),
     j_gene_cols = c(alpha = "j_call", beta = "j_call"),
-    compute_distances = FALSE,
     store_all_cdr = FALSE,
     radius = 24L
   )

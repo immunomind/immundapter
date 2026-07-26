@@ -16,13 +16,11 @@ ImmGLIPH adapter
     \item \href{#method-ImmGliphTool-initialize}{\code{ImmGliphTool$new()}}
   }
 }
-\if{html}{\out{<details><summary>Inherited methods</summary>
+\if{html}{\out{<details open><summary>Inherited methods</summary>
 <ul>
-  <li><code>AbstractTool$annotate()</code></li>
   <li><code>AbstractTool$check()</code></li>
   <li><code>AbstractTool$citation()</code></li>
   <li><code>AbstractTool$help()</code></li>
-  <li><code>AbstractTool$results()</code></li>
   <li><code>AbstractTool$run()</code></li>
 </ul>
 </details>}}

@@ -18,7 +18,17 @@ test_that("tcrdist3 uses its managed immundapter_data environment", {
       executable
     )
   )
+  expect_equal(config$mode, "cluster")
   expect_equal(config$radius, 24L)
+})
+
+test_that("tcrdist3 accepts an explicit distance-only mode", {
+  config <- conf_tcrdist3(
+    mode = "distance",
+    python = "/opt/tcrdist3/bin/python"
+  )
+
+  expect_equal(config$mode, "distance")
 })
 
 test_that("tcrdist3 managed environment defaults under the user home", {

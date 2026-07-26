@@ -5,16 +5,16 @@
 \alias{conf_tcrdist3}
 \alias{tool_tcrdist3}
 \alias{Tcrdist3ToolConfig}
-\title{Cluster T-cell receptors with tcrdist3}
+\title{Calculate T-cell receptor distances and clusters with tcrdist3}
 \usage{
 conf_tcrdist3(
+  mode = c("cluster", "distance"),
   organism = "human",
   chains = "beta",
   cdr3_cols = c(beta = "junction_aa"),
   v_gene_cols = c(beta = "v_call"),
   j_gene_cols = c(beta = "j_call"),
   db_file = "alphabeta_gammadelta_db.tsv",
-  compute_distances = FALSE,
   store_all_cdr = TRUE,
   deduplicate = TRUE,
   cpus = 1L,
@@ -26,12 +26,17 @@ conf_tcrdist3(
 tool_tcrdist3(config = conf_tcrdist3())
 }
 \arguments{
+\item{mode}{Operation performed after distance calculation. \code{"cluster"}
+creates radius-based cluster assignments and annotatable results;
+\code{"distance"} returns the distance matrix and receptor mapping without
+clustering.}
+
 \item{organism}{Host organism: \code{"human"} or \code{"mouse"}. It must match the V/J
 gene names in the input.}
 
 \item{chains}{One or two unique chains selected from \code{"alpha"}, \code{"beta"},
 \code{"gamma"}, and \code{"delta"}. These are passed to \code{TCRrep} and determine which
-chain distances contribute to clustering.}
+chain distances contribute to the combined distance matrix.}
 
 \item{cdr3_cols}{Named character vector mapping every value of \code{chains} to
 its source CDR3 amino-acid column. For long-form paired \code{ImmunData}, two
@@ -48,10 +53,6 @@ its source J-gene column.}
 \item{db_file}{Germline database passed to
 \code{tcrdist.repertoire.TCRrep}. tcrdist3 includes the default database.}
 
-\item{compute_distances}{Whether \code{TCRrep} computes pairwise distances when
-it is created. If \code{FALSE}, the tool computes them in the next step because
-clustering requires the complete matrix.}
-
 \item{store_all_cdr}{Whether \code{TCRrep} retains the CDR-specific distance
 matrices in addition to its per-chain matrices.}
 
@@ -61,7 +62,7 @@ once. Results are expanded back to every original \code{input_id}.}
 \item{cpus}{Positive integer number of CPUs supplied to \code{TCRrep}.}
 
 \item{radius}{Non-negative integer maximum combined tcrdist for an edge in
-the clustering graph.}
+the clustering graph. It is used only when \code{mode = "cluster"}.}
 
 \item{python}{Python executable name or path. \code{NULL} selects the managed
 tcrdist3 environment described above.}
@@ -80,13 +81,15 @@ tool, such as \code{cell_df}, \code{chains}, or \code{index_cols}.}
 \description{
 tcrdist3 measures similarity between T-cell receptors from their CDR3
 amino-acid sequences and V/J genes. This adapter prepares R data for the
-Python \code{tcrdist3} package, calculates receptor distances, turns the distance
-matrix into clusters, and brings the cluster assignments back into R.
+Python \code{tcrdist3} package and calculates receptor distances. In cluster
+mode, it also turns the distance matrix into clusters and brings the cluster
+assignments back into R.
 
 \code{Tcrdist3ToolConfig} is an immutable analysis recipe. It contains validated
 tcrdist3 settings but no input data or results. Create it with
 \code{\link[=conf_tcrdist3]{conf_tcrdist3()}}, then pass it to \code{\link[=tool_tcrdist3]{tool_tcrdist3()}}. A \code{ToolRun} stores a
-plain-list snapshot of the configuration used for that run.
+plain-list snapshot of the configuration used for that run and exposes its
+results through \verb{$results()}.
 }
 \section{The objects and how they connect}{
 
@@ -98,20 +101,24 @@ chains contribute to distance, where their CDR3 and V/J columns are, and
 how tcrdist3 should run. It contains no repertoire data.}
 \item{Tool}{\code{\link[=tool_tcrdist3]{tool_tcrdist3()}} wraps a configuration in a
 \link{Tcrdist3Tool}. The tool can be reused for multiple inputs. It provides
-\verb{$help()}, \verb{$check()}, \verb{$run()}, \verb{$results()}, and \verb{$annotate()}.}
+\verb{$help()}, \verb{$check()}, and \verb{$run()}.}
 \item{Run}{\code{tool$run(input)} executes one analysis and returns a
 \code{ToolRun}. The run records the configuration, input summary, run
-directory, and paths to every generated artifact.}
-\item{Results}{\code{tool$results(run)} reads the cluster table as a lazy
-duckplyr table. If the input came from \code{ImmunData},
-\code{tool$annotate(idata, results)} joins those clusters back by
-\code{imd_receptor_id} and returns a new annotated \code{ImmunData}.}
+directory, and paths to every generated artifact. Call \code{run$results()} to
+parse that specific execution.}
+\item{Results}{\code{run$results()} returns either
+\link{Tcrdist3ClusterResults} or \link{Tcrdist3DistanceResults}. Both provide a lazy
+duckplyr \verb{$mapping} and a \verb{$distances} artifact path. Cluster results also
+provide \verb{$clusters} and \verb{$edges}; their \verb{$annotate(idata)} joins clusters
+back by \code{imd_receptor_id}. Distance results cannot annotate and explain
+how to rerun in cluster mode.}
 }
 
 In short:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{config -> tool -> run -> results
-                       -> annotated ImmunData
+                             |
+                             +-> annotated ImmunData (cluster mode)
 }\if{html}{\out{</div>}}
 }
 
@@ -169,14 +176,15 @@ The adapter has already resolved deduplication, so the runner calls
 \code{TCRrep} with its own deduplication disabled.
 \item Calculate one pairwise distance matrix per selected chain and add
 the matrices for a multi-chain analysis.
-\item Connect receptor pairs whose combined distance is at most \code{radius};
-each connected component becomes a cluster.
-\item Expand cluster assignments, edges, and distances back to the
-original input order.
+\item Expand distances back to the original input order.
+\item In cluster mode, connect receptor pairs whose combined distance is
+at most \code{radius}; each connected component becomes a cluster, and expand
+cluster assignments and edges back to the original input order.
 }
 
-Clustering is transitive: two receptors in one connected component can have
-a direct distance greater than \code{radius} when other receptors connect them.
+In cluster mode, clustering is transitive: two receptors in one connected
+component can have a direct distance greater than \code{radius} when other
+receptors connect them.
 }
 
 \section{Managed Python environment}{
@@ -212,8 +220,8 @@ run <- tool$run(
 )
 
 # 4. Read the cluster table.
-clusters <- tool$results(run)
-dplyr::collect(clusters)
+results <- run$results()
+dplyr::collect(results$clusters)
 
 # The same configuration can run on ImmunData.
 snapshot <- system.file(
@@ -225,10 +233,21 @@ idata_run <- tool$run(
   idata,
   output_dir = file.path(tempdir(), "tcrdist3-immundata")
 )
-idata_clusters <- tool$results(idata_run)
+idata_results <- idata_run$results()
 
 # 5. Join receptor-level clusters back to all annotation rows.
-annotated <- tool$annotate(idata, idata_clusters)
+annotated <- idata_results$annotate(idata)
+
+# Distance-only runs stop after creating the mapping and distance matrix.
+distance_tool <- tool_tcrdist3(conf_tcrdist3(mode = "distance"))
+distance_run <- distance_tool$run(
+  idata,
+  output_dir = file.path(tempdir(), "tcrdist3-distance")
+)
+distance_results <- distance_run$results()
+distance_results$distances
+# distance_results$annotate(idata) gives an actionable error because there
+# are no receptor-level annotations in a distance-only result.
 
 # Build paired TRA/TRB ImmunData from the bundled long-form example.
 paired_input <- system.file(
@@ -277,6 +296,8 @@ paired_run <- paired_tool$run(
 \section{Public fields}{
   \if{html}{\out{<div class="r6-fields">}}
   \describe{
+    \item{\code{mode}}{Whether the run produces clusters or distances only.}
+
     \item{\code{organism}}{Validated organism supplied to \code{TCRrep}.}
 
     \item{\code{chains}}{Validated TCR chains.}
@@ -288,8 +309,6 @@ paired_run <- paired_tool$run(
     \item{\code{j_gene_cols}}{Named chain-to-J-gene-column mapping.}
 
     \item{\code{db_file}}{tcrdist3 germline database.}
-
-    \item{\code{compute_distances}}{Logical initialization strategy for \code{TCRrep}.}
 
     \item{\code{store_all_cdr}}{Logical CDR-matrix retention setting.}
 
