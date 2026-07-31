@@ -1,53 +1,62 @@
-#' Configure or create an IgBLAST adapter
+#' Assign immune-receptor germline genes with IgBLAST
 #'
-#' `conf_igblast()` validates IgBLAST parameters. `tool_igblast()` creates the
-#' adapter from that configuration.
+#' `tool_igblast()` runs `igblastr::igblastn()` directly on chain nucleotide
+#' sequences from an [immundata::ImmunData] object. The germline database
+#' selected with `igblastr::use_germline_db()` determines both the organism and
+#' whether Ig or TCR sequences are analyzed.
 #'
-#' @section Development status:
-#' Configuration, installation help, and installation checks are available.
-#' Running IgBLAST, reading its results, annotating `ImmunData`, and returning
-#' citation metadata are planned for the next version.
+#' Output is always AIRR, domains are always IMGT, and igblastr automatically
+#' resolves germline, optional C-region, internal, and auxiliary data. Exact
+#' duplicate sequences are submitted once and related back to `imd_chain_id`
+#' through a persisted query map.
 #'
-#' @param sequence_col Column containing nucleotide query sequences.
-#' @param organism Query organism or `"auto"`.
-#' @param ig_seqtype Receptor sequence type: `"Ig"`, `"TCR"`, or `"auto"`.
-#' @param germline_db_V V-region database path or `"auto"`.
-#' @param germline_db_D D-region database path or `"auto"`.
-#' @param germline_db_J J-region database path or `"auto"`.
-#' @param c_region_db Constant-region database path, `"auto"`, or `NULL`.
-#' @param auxiliary_data Auxiliary-data file path, `"auto"`, or `NULL`.
-#' @param num_threads Number of IgBLAST threads.
-#' @param igblast_root Optional path to an existing IgBLAST installation.
-#' @param run_args Additional named arguments passed to `igblastr::igblastn()`.
-#' @param config An [IgblastToolConfig] created by `conf_igblast()`.
+#' @section Result status:
+#' Results expose the complete AIRR output and query mapping as lazy duckplyr
+#' tables. `$annotate()` adds selected AIRR columns to chain annotations,
+#' defaulting to `sequence_alignment` and `germline_alignment`.
 #'
-#' @return `conf_igblast()` returns an IgBLAST configuration.
-#'   `tool_igblast()` returns an IgBLAST adapter skeleton.
+#' @param sequence_col Column in `idata$annotations` containing ungapped
+#'   nucleotide query sequences.
+#' @param num_threads Optional number of IgBLAST threads. `NULL` uses IgBLAST's
+#'   default.
+#' @param run_args Additional named arguments passed through `...` in
+#'   `igblastr::igblastn()`. Adapter-owned arguments cannot be overridden.
+#' @param config An [IgblastToolConfig] created by [conf_igblast()].
 #'
-#' @seealso \url{https://bioconductor.org/packages/release/bioc/manuals/igblastr/man/igblastr.pdf}
+#' @return [conf_igblast()] returns a read-only [IgblastToolConfig].
+#'   [tool_igblast()] returns a reusable IgBLAST adapter.
+#'
+#' @examples
+#' config <- conf_igblast(sequence_col = "sequence")
+#' tool <- tool_igblast(config)
+#' tool$help()
+#'
+#' \dontrun{
+#' pak::pak("bioc::igblastr")
+#' igblastr::install_igblast()
+#' igblastr::install_IMGT_germline_db(
+#'   "<release>",
+#'   organism = "Homo sapiens",
+#'   tcr.db = TRUE
+#' )
+#' igblastr::use_germline_db("<db-name>")
+#'
+#' run <- tool$run(idata, output_dir = "analysis/igblast")
+#' results <- run$results()
+#' dplyr::collect(results$airr)
+#' dplyr::collect(results$mapping)
+#' aligned_idata <- results$annotate(idata)
+#' }
+#'
+#' @seealso
+#'   \url{https://bioconductor.org/packages/release/bioc/vignettes/igblastr/inst/doc/igblastr_overview.html}
 #' @export
 conf_igblast <- function(sequence_col = "sequence",
-                         organism = "auto",
-                         ig_seqtype = "auto",
-                         germline_db_V = "auto",
-                         germline_db_D = "auto",
-                         germline_db_J = "auto",
-                         c_region_db = "auto",
-                         auxiliary_data = "auto",
-                         num_threads = 1L,
-                         igblast_root = NULL,
+                         num_threads = NULL,
                          run_args = list()) {
   IgblastToolConfig$new(list(
     sequence_col = sequence_col,
-    organism = organism,
-    ig_seqtype = ig_seqtype,
-    germline_db_V = germline_db_V,
-    germline_db_D = germline_db_D,
-    germline_db_J = germline_db_J,
-    c_region_db = c_region_db,
-    auxiliary_data = auxiliary_data,
     num_threads = num_threads,
-    igblast_root = igblast_root,
     run_args = run_args
   ))
 }
@@ -62,17 +71,9 @@ tool_igblast <- function(config = conf_igblast()) {
 
 #' IgBLAST tool configuration
 #'
-#' @field sequence_col Column containing nucleotide query sequences.
-#' @field organism Query organism or `"auto"`.
-#' @field ig_seqtype Receptor sequence type: `"Ig"`, `"TCR"`, or `"auto"`.
-#' @field germline_db_V V-region database path or `"auto"`.
-#' @field germline_db_D D-region database path or `"auto"`.
-#' @field germline_db_J J-region database path or `"auto"`.
-#' @field c_region_db Constant-region database path, `"auto"`, or `NULL`.
-#' @field auxiliary_data Auxiliary-data file path, `"auto"`, or `NULL`.
-#' @field num_threads Number of IgBLAST threads.
-#' @field igblast_root Optional path to an existing IgBLAST installation.
-#' @field run_args Additional named arguments for `igblastr::igblastn()`.
+#' @field sequence_col Column containing ungapped nucleotide query sequences.
+#' @field num_threads Optional number of IgBLAST threads.
+#' @field run_args Additional named IgBLAST command-line arguments.
 #'
 #' @keywords internal
 IgblastToolConfig <- R6::R6Class(
@@ -81,15 +82,7 @@ IgblastToolConfig <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     sequence_col = NULL,
-    organism = NULL,
-    ig_seqtype = NULL,
-    germline_db_V = NULL,
-    germline_db_D = NULL,
-    germline_db_J = NULL,
-    c_region_db = NULL,
-    auxiliary_data = NULL,
     num_threads = NULL,
-    igblast_root = NULL,
     run_args = NULL,
     #' @description
     #' Create a validated IgBLAST configuration. Users should call
@@ -98,19 +91,35 @@ IgblastToolConfig <- R6::R6Class(
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_string(values$sequence_col)
-      checkmate::assert_choice(
-        values$organism,
-        c("auto", "human", "mouse", "rat", "rabbit", "rhesus_monkey")
+      checkmate::assert_int(values$num_threads, lower = 1L, null.ok = TRUE)
+      checkmate::assert_list(values$run_args)
+
+      argument_names <- names(values$run_args)
+      if (
+        length(values$run_args) > 0L &&
+          (
+            is.null(argument_names) ||
+              any(!nzchar(argument_names)) ||
+              anyDuplicated(argument_names)
+          )
+      ) {
+        rlang::abort("IgBLAST `run_args` must have unique, non-empty names.")
+      }
+
+      fixed <- c(
+        "query", "outfmt", "germline_db_V", "germline_db_D",
+        "germline_db_J", "organism", "c_region_db",
+        "custom_internal_data", "auxiliary_data", "domain_system",
+        "ig_seqtype", "out", "parse.out", "show.in.browser",
+        "show.command.only", "num_threads"
       )
-      checkmate::assert_choice(values$ig_seqtype, c("auto", "Ig", "TCR"))
-      checkmate::assert_string(values$germline_db_V)
-      checkmate::assert_string(values$germline_db_D)
-      checkmate::assert_string(values$germline_db_J)
-      checkmate::assert_string(values$c_region_db, null.ok = TRUE)
-      checkmate::assert_string(values$auxiliary_data, null.ok = TRUE)
-      checkmate::assert_int(values$num_threads, lower = 1L)
-      checkmate::assert_string(values$igblast_root, null.ok = TRUE)
-      checkmate::assert_list(values$run_args, names = "unique")
+      overridden <- intersect(argument_names, fixed)
+      if (length(overridden) > 0L) {
+        rlang::abort(sprintf(
+          "IgBLAST `run_args` cannot override: %s.",
+          paste(overridden, collapse = ", ")
+        ))
+      }
 
       super$initialize(values)
     }
@@ -118,7 +127,7 @@ IgblastToolConfig <- R6::R6Class(
 )
 
 
-#' IgBLAST adapter skeleton
+#' IgBLAST adapter
 #'
 #' @keywords internal
 IgblastTool <- R6::R6Class(
@@ -127,120 +136,161 @@ IgblastTool <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     #' @description
-    #' Create an IgBLAST adapter skeleton. Users should call [tool_igblast()]
-    #' instead. Execution support is planned for the next version.
+    #' Create an IgBLAST adapter. Users should call [tool_igblast()] instead.
     #' @param config An [IgblastToolConfig] returned by [conf_igblast()].
     initialize = function(config = conf_igblast()) {
       checkmate::assert_r6(config, classes = "IgblastToolConfig")
-      super$initialize("igblast", config)
+      super$initialize("igblast", config, IgblastRun)
     }
   ),
   private = list(
     help_impl = function() {
-      install_package <- 'pak::pak("bioc::igblastr")'
-      install_igblast <- "igblastr::install_igblast()"
-      list_databases <- "igblastr::list_germline_dbs()"
-      use_database <- 'igblastr::use_germline_db("<db-name>")'
-      documentation <- paste0(
-        "https://bioconductor.org/packages/release/bioc/",
-        "vignettes/igblastr/inst/doc/igblastr_overview.html"
-      )
-
       cli::cli_inform(c(
-        "i" = "Install IgBLAST through {.pkg igblastr}:"
+        "i" = "Set up IgBLAST through {.pkg igblastr}:",
+        ">" = '{.code pak::pak("bioc::igblastr")}',
+        ">" = "{.code igblastr::install_igblast()}",
+        ">" = "{.code igblastr::list_germline_dbs()}",
+        ">" = paste(
+          "{.code igblastr::install_IMGT_germline_db(",
+          '"<release>", organism = "Homo sapiens", tcr.db = TRUE)}'
+        ),
+        ">" = '{.code igblastr::use_germline_db("<db-name>")}',
+        "i" = paste(
+          "The selected database determines organism and Ig versus TCR.",
+          "Selection must happen in the R session that calls `$run()`."
+        ),
+        "i" = paste(
+          "A C-region database is optional. Install and select one with",
+          "{.code install_IMGT_c_region_db()} and",
+          "{.code use_c_region_db()} when constant-region calls are needed."
+        )
       ))
-      div <- cli::cli_div(theme = list(
-        ol = list("margin-left" = 2),
-        ul = list("margin-left" = 2)
-      ))
-      steps <- cli::cli_ol(.close = FALSE)
-
-      cli::cli_li("Install the R package on macOS, Linux, or Windows.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {install_package}}")
-      cli::cli_end(commands)
-
-      cli::cli_li("Install the platform-specific IgBLAST binary.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {install_igblast}}")
-      cli::cli_end(commands)
-
-      cli::cli_li("Choose a germline database.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {list_databases}}")
-      cli::cli_li("{.code {use_database}}")
-      cli::cli_end(commands)
-
-      cli::cli_end(steps)
-      cli::cli_end(div)
-
-      cli::cli_inform(c("i" = "Documentation:"))
-      div <- cli::cli_div(theme = list(
-        ul = list("margin-left" = 2)
-      ))
-      links <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("igblastr overview: {.url {documentation}}")
-      cli::cli_end(links)
-      cli::cli_end(div)
     },
     check_impl = function() {
-      package_installed <- requireNamespace("igblastr", quietly = TRUE)
-      igblast_installed <- FALSE
-
-      if (package_installed) {
-        has_igblast <- getExportedValue("igblastr", "has_igblast")
-        igblast_installed <- if (is.null(private$.config$igblast_root)) {
-          isTRUE(has_igblast())
-        } else {
-          withr::with_envvar(
-            c(IGBLAST_ROOT = private$.config$igblast_root),
-            isTRUE(has_igblast())
-          )
-        }
-      }
-
-      if (igblast_installed) {
-        version <- as.character(utils::packageVersion("igblastr"))
-        path <- system.file(package = "igblastr")
-        cli::cli_inform(c(
-          "v" = "{.pkg igblastr} {version} is installed.",
-          ">" = "R package: {.path {path}}",
-          "v" = "A working IgBLAST installation is available."
-        ))
-      } else if (package_installed) {
-        version <- as.character(utils::packageVersion("igblastr"))
-        path <- system.file(package = "igblastr")
-        cli::cli_inform(c(
-          "v" = "{.pkg igblastr} {version} is installed.",
-          ">" = "R package: {.path {path}}",
-          "x" = "No working IgBLAST installation was found.",
-          "i" = "Run {.code tool$help()} for setup instructions."
-        ))
-      } else {
+      runtime <- igblast_runtime_info()
+      if (!runtime$package_installed) {
         cli::cli_inform(c(
           "x" = "{.pkg igblastr} is not installed.",
           "i" = "Run {.code tool$help()} for setup instructions."
         ))
+        return(FALSE)
+      }
+      if (!runtime$igblast_installed) {
+        cli::cli_inform(c(
+          "v" = "{.pkg igblastr} {runtime$igblastr_version} is installed.",
+          "x" = "No working IgBLAST installation was found."
+        ))
+        return(FALSE)
+      }
+      if (is.null(runtime$germline_db)) {
+        cli::cli_inform(c(
+          "v" = "IgBLAST {runtime$igblast_version} is available.",
+          "x" = "No germline V/D/J database is selected in this R session."
+        ))
+        return(FALSE)
       }
 
-      package_installed && igblast_installed
+      cli::cli_inform(c(
+        "v" = "{.pkg igblastr} {runtime$igblastr_version} is installed.",
+        "v" = "IgBLAST {runtime$igblast_version} is available.",
+        "v" = "Selected germline database: {runtime$germline_db}",
+        "i" = if (nzchar(runtime$c_region_db)) {
+          "Selected C-region database: {runtime$c_region_db}"
+        } else {
+          "No C-region database is selected."
+        }
+      ))
+      TRUE
     },
     citation_impl = function() {
       rlang::abort("IgBLAST `citation()` is not implemented yet.")
     },
     validate_input_impl = function(input, config) {
-      checkmate::assert_string(input, min.chars = 1L)
-      checkmate::assert_file_exists(input)
-      fs::path_abs(input)
+      checkmate::assert_r6(input, classes = "ImmunData")
+      input
     },
     run_impl = function(input, config, run_dir) {
-      rlang::abort("IgBLAST `run()` is not implemented yet.")
-    },
-    results_impl = function(run) {
-      rlang::abort("IgBLAST `results()` is not implemented yet.")
-    },
-    annotate_impl = function(idata, results, ...) {
-      rlang::abort("IgBLAST `annotate()` is not implemented yet.")
+      runtime <- igblast_runtime_info()
+      if (!runtime$package_installed || !runtime$igblast_installed) {
+        rlang::abort(
+          "igblastr and a working IgBLAST installation are required."
+        )
+      }
+      if (is.null(runtime$germline_db)) {
+        rlang::abort(paste(
+          "No germline V/D/J database is selected.",
+          "Call `igblastr::use_germline_db()` in this R session."
+        ))
+      }
+
+      prepared <- igblast_prepare_input(input, config$sequence_col)
+      input_path <- fs::path(run_dir, "igblast-input.fasta")
+      mapping_path <- fs::path(run_dir, "igblast-query-map.parquet")
+      output_path <- fs::path(run_dir, "igblast-airr.tsv")
+      config_path <- fs::path(run_dir, "igblast-config.json")
+
+      writeLines(
+        as.vector(rbind(
+          paste0(">", prepared$queries$igblast_query_id),
+          prepared$queries$sequence
+        )),
+        input_path,
+        useBytes = TRUE
+      )
+      duckplyr::compute_parquet(prepared$mapping, mapping_path)
+
+      fixed <- list(
+        query = as.character(fs::path_abs(input_path)),
+        outfmt = "AIRR",
+        germline_db_V = "auto",
+        germline_db_D = "auto",
+        germline_db_J = "auto",
+        organism = "auto",
+        c_region_db = "auto",
+        custom_internal_data = "auto",
+        auxiliary_data = "auto",
+        domain_system = "imgt",
+        ig_seqtype = "auto",
+        out = as.character(fs::path_abs(output_path)),
+        parse.out = FALSE,
+        show.in.browser = FALSE,
+        show.command.only = FALSE
+      )
+      arguments <- c(
+        fixed,
+        if (is.null(config$num_threads)) {
+          list()
+        } else {
+          list(num_threads = config$num_threads)
+        },
+        config$run_args
+      )
+
+      jsonlite::write_json(
+        list(
+          sequence_col = config$sequence_col,
+          num_threads = config$num_threads,
+          run_args = config$run_args,
+          fixed = fixed[setdiff(names(fixed), c("query", "out"))],
+          runtime = runtime
+        ),
+        path = config_path,
+        auto_unbox = TRUE,
+        null = "null",
+        pretty = TRUE
+      )
+
+      igblast_call(arguments)
+      if (!fs::file_exists(output_path)) {
+        rlang::abort("IgBLAST did not produce AIRR output.")
+      }
+
+      list(
+        input = input_path,
+        config = config_path,
+        mapping = mapping_path,
+        airr = output_path
+      )
     }
   )
 )

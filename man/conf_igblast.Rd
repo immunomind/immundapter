@@ -3,64 +3,70 @@
 \name{conf_igblast}
 \alias{conf_igblast}
 \alias{tool_igblast}
-\title{Configure or create an IgBLAST adapter}
+\title{Assign immune-receptor germline genes with IgBLAST}
 \usage{
-conf_igblast(
-  sequence_col = "sequence",
-  organism = "auto",
-  ig_seqtype = "auto",
-  germline_db_V = "auto",
-  germline_db_D = "auto",
-  germline_db_J = "auto",
-  c_region_db = "auto",
-  auxiliary_data = "auto",
-  num_threads = 1L,
-  igblast_root = NULL,
-  run_args = list()
-)
+conf_igblast(sequence_col = "sequence", num_threads = NULL, run_args = list())
 
 tool_igblast(config = conf_igblast())
 }
 \arguments{
-\item{sequence_col}{Column containing nucleotide query sequences.}
+\item{sequence_col}{Column in \code{idata$annotations} containing ungapped
+nucleotide query sequences.}
 
-\item{organism}{Query organism or \code{"auto"}.}
+\item{num_threads}{Optional number of IgBLAST threads. \code{NULL} uses IgBLAST's
+default.}
 
-\item{ig_seqtype}{Receptor sequence type: \code{"Ig"}, \code{"TCR"}, or \code{"auto"}.}
+\item{run_args}{Additional named arguments passed through \code{...} in
+\code{igblastr::igblastn()}. Adapter-owned arguments cannot be overridden.}
 
-\item{germline_db_V}{V-region database path or \code{"auto"}.}
-
-\item{germline_db_D}{D-region database path or \code{"auto"}.}
-
-\item{germline_db_J}{J-region database path or \code{"auto"}.}
-
-\item{c_region_db}{Constant-region database path, \code{"auto"}, or \code{NULL}.}
-
-\item{auxiliary_data}{Auxiliary-data file path, \code{"auto"}, or \code{NULL}.}
-
-\item{num_threads}{Number of IgBLAST threads.}
-
-\item{igblast_root}{Optional path to an existing IgBLAST installation.}
-
-\item{run_args}{Additional named arguments passed to \code{igblastr::igblastn()}.}
-
-\item{config}{An \link{IgblastToolConfig} created by \code{conf_igblast()}.}
+\item{config}{An \link{IgblastToolConfig} created by \code{\link[=conf_igblast]{conf_igblast()}}.}
 }
 \value{
-\code{conf_igblast()} returns an IgBLAST configuration.
-\code{tool_igblast()} returns an IgBLAST adapter skeleton.
+\code{\link[=conf_igblast]{conf_igblast()}} returns a read-only \link{IgblastToolConfig}.
+\code{\link[=tool_igblast]{tool_igblast()}} returns a reusable IgBLAST adapter.
 }
 \description{
-\code{conf_igblast()} validates IgBLAST parameters. \code{tool_igblast()} creates the
-adapter from that configuration.
+\code{tool_igblast()} runs \code{igblastr::igblastn()} directly on chain nucleotide
+sequences from an \link[immundata:ImmunData]{immundata::ImmunData} object. The germline database
+selected with \code{igblastr::use_germline_db()} determines both the organism and
+whether Ig or TCR sequences are analyzed.
 }
-\section{Development status}{
+\details{
+Output is always AIRR, domains are always IMGT, and igblastr automatically
+resolves germline, optional C-region, internal, and auxiliary data. Exact
+duplicate sequences are submitted once and related back to \code{imd_chain_id}
+through a persisted query map.
+}
+\section{Result status}{
 
-Configuration, installation help, and installation checks are available.
-Running IgBLAST, reading its results, annotating \code{ImmunData}, and returning
-citation metadata are planned for the next version.
+Results expose the complete AIRR output and query mapping as lazy duckplyr
+tables. \verb{$annotate()} adds selected AIRR columns to chain annotations,
+defaulting to \code{sequence_alignment} and \code{germline_alignment}.
 }
 
+\examples{
+config <- conf_igblast(sequence_col = "sequence")
+tool <- tool_igblast(config)
+tool$help()
+
+\dontrun{
+pak::pak("bioc::igblastr")
+igblastr::install_igblast()
+igblastr::install_IMGT_germline_db(
+  "<release>",
+  organism = "Homo sapiens",
+  tcr.db = TRUE
+)
+igblastr::use_germline_db("<db-name>")
+
+run <- tool$run(idata, output_dir = "analysis/igblast")
+results <- run$results()
+dplyr::collect(results$airr)
+dplyr::collect(results$mapping)
+aligned_idata <- results$annotate(idata)
+}
+
+}
 \seealso{
-\url{https://bioconductor.org/packages/release/bioc/manuals/igblastr/man/igblastr.pdf}
+\url{https://bioconductor.org/packages/release/bioc/vignettes/igblastr/inst/doc/igblastr_overview.html}
 }

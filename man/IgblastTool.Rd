@@ -2,9 +2,9 @@
 % Please edit documentation in R/igblast.R
 \name{IgblastTool}
 \alias{IgblastTool}
-\title{IgBLAST adapter skeleton}
+\title{IgBLAST adapter}
 \description{
-IgBLAST adapter skeleton
+IgBLAST adapter
 }
 \keyword{internal}
 \section{Super class}{
@@ -28,8 +28,7 @@ IgBLAST adapter skeleton
 \if{html}{\out{<a id="method-IgblastTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-IgblastTool-initialize}{}}}
 \subsection{\code{IgblastTool$new()}}{
-  Create an IgBLAST adapter skeleton. Users should call \code{\link[=tool_igblast]{tool_igblast()}}
-instead. Execution support is planned for the next version.
+  Create an IgBLAST adapter. Users should call \code{\link[=tool_igblast]{tool_igblast()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{IgblastTool$new(config = conf_igblast())}
