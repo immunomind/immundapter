@@ -1,22 +1,22 @@
 Package: immundapter
 Type: Package
-Title: Adapters to the Immune Repertoire Tools
+Title: A Lightweight Bridge to Immune Repertoire Tools
 Version: 0.1.0
 Depends:
     R (>= 4.1.0)
-Authors@R: c(
-    person(
-      "Jane", "Doe",
-      email = "jane@example.com",
-      role = c("aut", "cre")
-    )
-  )
-Description: More about what it does (maybe more than one line).
-    Continuation lines should be indented.
-License: What license is it under?
+Authors@R:
+    person("Vadim I.", "Nazarov", , "support@immunomind.com", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0003-3659-2709"))
+Contact: support@immunomind.com
+Description: Connects the Immunarch ecosystem to a rich variety of external
+    tools and reference databases. Tool adapters capture validated analysis
+    recipes, run software, preserve the resulting artifacts, and translate
+    outputs back into annotated ImmunData objects.
+License: Apache License (>= 2)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
+biocViews:
 Imports:
     checkmate,
     cli,
@@ -29,8 +29,6 @@ Imports:
     rlang,
     withr
 Suggests:
-    igblastr,
-    immGLIPH,
     testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0
