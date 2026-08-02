@@ -1,8 +1,3 @@
-######################################
-### Utility functions for TCRdist3 ###
-######################################
-
-
 tcrdist3_chain_columns <- function(chain) {
   suffix <- switch(chain,
     alpha = "a",
