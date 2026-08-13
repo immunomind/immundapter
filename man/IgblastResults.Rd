@@ -4,16 +4,22 @@
 \alias{IgblastResults}
 \title{Parsed IgBLAST results}
 \description{
-\code{IgblastResults} preserves the complete AIRR output produced by IgBLAST.
-\verb{$annotate()} adds selected AIRR columns to chain-level \code{ImmunData}
-annotations. By default it adds \code{sequence_alignment} and
-\code{germline_alignment}; pass \code{columns} to select other AIRR fields.
+\code{IgblastResults} provides the complete AIRR output and the files created by
+IgBLAST. \verb{$airr}, \verb{$mapping}, and \verb{$final} stay on disk until you use
+\code{dplyr::collect()}.
 }
-\section{Annotation}{
+\section{Output depends on the input}{
 
-Use \code{results$annotate(idata, columns = ...)} to copy AIRR fields onto the
-chains represented by the saved query mapping. Column names are preserved.
-Additional arguments, including \code{conflicts}, are passed to
+All runs provide \verb{$airr}, \verb{$mapping}, and \verb{$raw_output}. Runs made from
+\code{ImmunData} can use \code{results$annotate(idata, columns = ...)} to add AIRR
+fields to the original chains. By default, it adds \code{sequence_alignment} and
+\code{germline_alignment}.
+
+Runs made from a FASTA file cannot annotate \code{ImmunData} directly. Runs made
+from a named FASTA-and-annotations pair also provide \verb{$final} and
+\verb{$final_output}, containing the source table joined with AIRR results.
+
+Additional \verb{$annotate()} arguments, including \code{conflicts}, are passed to
 \code{\link[immundata:annotate_chains]{immundata::annotate_chains()}}.
 }
 
@@ -24,12 +30,18 @@ Additional arguments, including \code{conflicts}, are passed to
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{airr}}{Read-only lazy duckplyr table containing complete AIRR output.}
+    \item{\code{airr}}{Read-only AIRR result table.}
 
-    \item{\code{mapping}}{Read-only lazy duckplyr table mapping input \code{imd_chain_id}
-values to IgBLAST query identifiers.}
+    \item{\code{mapping}}{Read-only table showing which input chain or FASTA sequence
+produced each IgBLAST \code{sequence_id}.}
 
-    \item{\code{raw_output}}{Read-only path to the AIRR TSV file.}
+    \item{\code{raw_output}}{Read-only file path to the AIRR TSV output.}
+
+    \item{\code{final}}{Read-only table containing the original annotation columns and
+AIRR results for paired FASTA and annotation input.}
+
+    \item{\code{final_output}}{Read-only file path to the final TSV table for paired
+input.}
   }
   \if{html}{\out{</div>}}
 }

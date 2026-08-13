@@ -1,8 +1,7 @@
 #' Completed IgBLAST execution
 #'
-#' `IgblastRun` is returned by [IgblastTool]`$run()`. It contains immutable
-#' execution metadata and artifact paths. `$results()` returns
-#' [IgblastResults].
+#' [IgblastTool]`$run()` returns an `IgblastRun`. It records the settings and
+#' where the files were saved. Call `$results()` to obtain [IgblastResults].
 #'
 #' @keywords internal
 IgblastRun <- R6::R6Class(

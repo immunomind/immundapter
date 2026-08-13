@@ -1,20 +1,30 @@
 #' Parsed IgBLAST results
 #'
-#' `IgblastResults` preserves the complete AIRR output produced by IgBLAST.
-#' `$annotate()` adds selected AIRR columns to chain-level `ImmunData`
-#' annotations. By default it adds `sequence_alignment` and
-#' `germline_alignment`; pass `columns` to select other AIRR fields.
+#' `IgblastResults` provides the complete AIRR output and the files created by
+#' IgBLAST. `$airr`, `$mapping`, and `$final` stay on disk until you use
+#' `dplyr::collect()`.
 #'
-#' @section Annotation:
-#' Use `results$annotate(idata, columns = ...)` to copy AIRR fields onto the
-#' chains represented by the saved query mapping. Column names are preserved.
-#' Additional arguments, including `conflicts`, are passed to
+#' @section Output depends on the input:
+#' All runs provide `$airr`, `$mapping`, and `$raw_output`. Runs made from
+#' `ImmunData` can use `results$annotate(idata, columns = ...)` to add AIRR
+#' fields to the original chains. By default, it adds `sequence_alignment` and
+#' `germline_alignment`.
+#'
+#' Runs made from a FASTA file cannot annotate `ImmunData` directly. Runs made
+#' from a named FASTA-and-annotations pair also provide `$final` and
+#' `$final_output`, containing the source table joined with AIRR results.
+#'
+#' Additional `$annotate()` arguments, including `conflicts`, are passed to
 #' [immundata::annotate_chains()].
 #'
-#' @field airr Read-only lazy duckplyr table containing complete AIRR output.
-#' @field mapping Read-only lazy duckplyr table mapping input `imd_chain_id`
-#'   values to IgBLAST query identifiers.
-#' @field raw_output Read-only path to the AIRR TSV file.
+#' @field airr Read-only AIRR result table.
+#' @field mapping Read-only table showing which input chain or FASTA sequence
+#'   produced each IgBLAST `sequence_id`.
+#' @field raw_output Read-only file path to the AIRR TSV output.
+#' @field final Read-only table containing the original annotation columns and
+#'   AIRR results for paired FASTA and annotation input.
+#' @field final_output Read-only file path to the final TSV table for paired
+#'   input.
 #'
 #' @keywords internal
 IgblastResults <- R6::R6Class(
@@ -48,6 +58,37 @@ IgblastResults <- R6::R6Class(
       path <- private$.run$artifacts$airr
       checkmate::assert_file_exists(path)
       path
+    },
+    final = function(value) {
+      if (!missing(value)) {
+        rlang::abort("`final` is read-only.")
+      }
+      path <- private$.run$artifacts$final
+      if (is.null(path)) {
+        rlang::abort(paste(
+          "No final merged table is available.",
+          "Run IgBLAST with named `fasta` and `annotations` input files."
+        ))
+      }
+      checkmate::assert_file_exists(path)
+      duckplyr::read_csv_duckdb(
+        path,
+        options = list(delim = "\t", header = TRUE)
+      )
+    },
+    final_output = function(value) {
+      if (!missing(value)) {
+        rlang::abort("`final_output` is read-only.")
+      }
+      path <- private$.run$artifacts$final
+      if (is.null(path)) {
+        rlang::abort(paste(
+          "No final merged table is available.",
+          "Run IgBLAST with named `fasta` and `annotations` input files."
+        ))
+      }
+      checkmate::assert_file_exists(path)
+      path
     }
   ),
   private = list(
@@ -68,6 +109,16 @@ IgblastResults <- R6::R6Class(
         )
       }
 
+      chain_col <- immundata::imd_schema("chain")
+      mapping <- self$mapping
+      if (!chain_col %in% colnames(mapping)) {
+        rlang::abort(paste(
+          "IgBLAST results produced from FASTA input cannot annotate",
+          "`ImmunData` because the input came from a FASTA file.",
+          "Use `$airr` and `$mapping` to inspect or join the results."
+        ))
+      }
+
       airr <- self$airr
       missing <- setdiff(columns, colnames(airr))
       if (length(missing) > 0L) {
@@ -77,8 +128,7 @@ IgblastResults <- R6::R6Class(
         ))
       }
 
-      chain_col <- immundata::imd_schema("chain")
-      mapping <- self$mapping |>
+      mapping <- mapping |>
         dplyr::rename(
           sequence_id = igblast_query_id
         )

@@ -1,37 +1,77 @@
 #' Assign immune-receptor germline genes with IgBLAST
 #'
-#' `tool_igblast()` runs `igblastr::igblastn()` directly on chain nucleotide
-#' sequences from an [immundata::ImmunData] object. The germline database
-#' selected with `igblastr::use_germline_db()` determines both the organism and
-#' whether Ig or TCR sequences are analyzed.
+#' IgBLAST compares immune-receptor nucleotide sequences with germline gene
+#' databases. It reports V, D, J, and optional constant-region assignments in
+#' AIRR format. The database selected with `igblastr::use_germline_db()`
+#' determines the organism and whether the input contains B-cell or T-cell
+#' receptors.
 #'
-#' Output is always AIRR, domains are always IMGT, and igblastr automatically
-#' resolves germline, optional C-region, internal, and auxiliary data. Exact
-#' duplicate sequences are submitted once and related back to `imd_chain_id`
-#' through a persisted query map.
+#' @section Input to `tool$run()`:
+#' Choose one of these three input forms:
 #'
-#' @section Result status:
-#' Results expose the complete AIRR output and query mapping as lazy duckplyr
-#' tables. `$annotate()` adds selected AIRR columns to chain annotations,
-#' defaulting to `sequence_alignment` and `germline_alignment`.
+#' - **`ImmunData`:** Pass an [immundata::ImmunData] dataset. `sequence_col` is
+#'   the name of the column with full-length, ungapped nucleotide sequences.
+#'   Missing and empty sequences are skipped. Exact duplicate sequences are
+#'   analyzed once and then matched back to all original chains.
+#' - **FASTA file:** Pass one file path, for example `"sequences.fasta"` or
+#'   `"sequences.fasta.gz"`. Every FASTA sequence must have a unique name.
+#'   Each sequence must contain ungapped IUPAC nucleotide letters. Every record is
+#'   analyzed separately, even when two records have the same sequence.
+#' - **FASTA file with an annotation table:** Pass two named paths:
+#'   `c(fasta = "sequences.fasta", annotations = "annotations.csv")`. The
+#'   annotation table may be CSV, TSV, or tab-delimited TXT, with optional gzip
+#'   compression. It usually comes from 10x Genomics. It must contain a unique
+#'   `contig_id` or `sequence_id` column. Values in this column must match the
+#'   FASTA sequence names exactly. This form keeps barcodes, read counts, UMI
+#'   counts, and other source columns while re-annotating 10x Genomics data.
 #'
-#' @param sequence_col Column in `idata$annotations` containing ungapped
-#'   nucleotide query sequences.
-#' @param num_threads Optional number of IgBLAST threads. `NULL` uses IgBLAST's
-#'   default.
+#' In a FASTA header such as `>cell_1 description`, the sequence name is
+#' `cell_1`. IgBLAST writes this name to the AIRR `sequence_id` column.
+#'
+#' @section Output from `tool$run()`:
+#' `tool$run()` returns an [IgblastRun]. It records where the results were
+#' saved. To read the result tables, first run `results <- run$results()`.
+#'
+#' [IgblastResults] provides:
+#'
+#' - **`results$airr`:** The complete AIRR table. It stays on disk until you
+#'   use `dplyr::collect(results$airr)`.
+#' - **`results$mapping`:** A table that shows which input chain or FASTA
+#'   sequence produced each AIRR `sequence_id`.
+#' - **`results$raw_output`:** The file path of the AIRR TSV result.
+#'
+#' Additional output depends on the input form:
+#'
+#' - **`ImmunData`:** `results$annotate(idata)` returns a new `ImmunData`
+#'   dataset with selected AIRR fields added to its chain table. By
+#'   default, it adds `sequence_alignment` and `germline_alignment`.
+#' - **FASTA file:** Use `$airr`, `$mapping`, and `$raw_output`. These results
+#'   cannot add columns to `ImmunData` because the input did not come from an
+#'   `ImmunData` dataset.
+#' - **FASTA file with an annotation table:** `results$final` contains the
+#'   original annotation table joined with the AIRR columns.
+#'   `results$final_output` is the path to the same table as a TSV file, ready
+#'   to read into `ImmunData`.
+#'
+#' @param sequence_col For `ImmunData` input, the name of the chain column
+#'   containing full-length, ungapped nucleotide sequences. This setting is not
+#'   used for FASTA input.
+#' @param num_threads Number of computer threads used by IgBLAST. `NULL` uses
+#'   the IgBLAST default.
 #' @param run_args Additional named arguments passed through `...` in
-#'   `igblastr::igblastn()`. Adapter-owned arguments cannot be overridden.
+#'   `igblastr::igblastn()`. Use this only for advanced IgBLAST settings.
+#'   Arguments controlled by immundapter cannot be changed here.
 #' @param config An [IgblastToolConfig] created by [conf_igblast()].
 #'
 #' @return [conf_igblast()] returns a read-only [IgblastToolConfig].
-#'   [tool_igblast()] returns a reusable IgBLAST adapter.
+#'   [tool_igblast()] returns an IgBLAST tool.
 #'
-#' @examples
+#' @examplesIf interactive()
 #' config <- conf_igblast(sequence_col = "sequence")
 #' tool <- tool_igblast(config)
 #' tool$help()
 #'
-#' \dontrun{
+#' # Installation
 #' pak::pak("bioc::igblastr")
 #' igblastr::install_igblast()
 #' igblastr::install_IMGT_germline_db(
@@ -41,15 +81,47 @@
 #' )
 #' igblastr::use_germline_db("<db-name>")
 #'
+#' # Workflow 1: add IgBLAST results to ImmunData.
 #' run <- tool$run(idata, output_dir = "analysis/igblast")
 #' results <- run$results()
 #' dplyr::collect(results$airr)
 #' dplyr::collect(results$mapping)
 #' aligned_idata <- results$annotate(idata)
-#' }
 #'
+#' # Workflow 2: analyze a FASTA file.
+#' fasta_run <- tool$run("queries.fasta", output_dir = "analysis/igblast")
+#' fasta_airr <- dplyr::collect(fasta_run$results()$airr)
+#'
+#' # Workflow 3: analyze FASTA and keep a matching annotation table.
+#' paired_run <- tool$run(
+#'   c(
+#'     fasta = "filtered_contig.fasta",
+#'     annotations = "filtered_contig_annotations.csv"
+#'   ),
+#'   output_dir = "analysis/igblast-10x"
+#' )
+#' paired_results <- paired_run$results()
+#' dplyr::collect(paired_results$final)
+#' paired_results$final_output
+#'
+#' bcr_schema <- immundata::make_receptor_schema(
+#'   features = c("v_call", "j_call", "junction_aa"),
+#'   chains = c("IGH", "IGK|IGL")
+#' )
+#' bcr_data <- immundata::read_repertoires(
+#'   path = paired_results$final_output,
+#'   schema = bcr_schema,
+#'   barcode_col = "barcode",
+#'   locus_col = "locus",
+#'   umi_col = "umis",
+#'   preprocess = immundata::make_default_preprocessing("10x"),
+#'   postprocess = NULL,
+#'   rename_columns = NULL,
+#'   output_folder = "analysis/immundata-bcr"
+#' )
+#' @name igblast
 #' @seealso
-#'   \url{https://bioconductor.org/packages/release/bioc/vignettes/igblastr/inst/doc/igblastr_overview.html}
+#'   [igblastr overview](https://bioconductor.org/packages/release/bioc/vignettes/igblastr/inst/doc/igblastr_overview.html)
 #' @export
 conf_igblast <- function(sequence_col = "sequence",
                          num_threads = NULL,
@@ -62,20 +134,24 @@ conf_igblast <- function(sequence_col = "sequence",
 }
 
 
-#' @rdname conf_igblast
+#' @rdname igblast
 #' @export
 tool_igblast <- function(config = conf_igblast()) {
   IgblastTool$new(config)
 }
 
 
-#' IgBLAST tool configuration
+#' @rdname igblast
+#'
+#' @description
+#' `IgblastToolConfig` stores validated IgBLAST settings. It contains no
+#' sequences and no results. Create it with [conf_igblast()] and pass it to
+#' [tool_igblast()]. The settings cannot be changed after creation. Call
+#' [conf_igblast()] again when different settings are needed.
 #'
 #' @field sequence_col Column containing ungapped nucleotide query sequences.
 #' @field num_threads Optional number of IgBLAST threads.
 #' @field run_args Additional named IgBLAST command-line arguments.
-#'
-#' @keywords internal
 IgblastToolConfig <- R6::R6Class(
   classname = "IgblastToolConfig",
   inherit = AbstractConfig,
@@ -85,9 +161,9 @@ IgblastToolConfig <- R6::R6Class(
     num_threads = NULL,
     run_args = NULL,
     #' @description
-    #' Create a validated IgBLAST configuration. Users should call
+    #' Create checked IgBLAST settings. Users should call
     #' [conf_igblast()] instead.
-    #' @param values A named list of IgBLAST configuration values.
+    #' @param values A named list of IgBLAST settings.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_string(values$sequence_col)
@@ -127,7 +203,19 @@ IgblastToolConfig <- R6::R6Class(
 )
 
 
-#' IgBLAST adapter
+#' Run IgBLAST analyses
+#'
+#' `IgblastTool` uses one [IgblastToolConfig] as its default settings. Create it
+#' with [tool_igblast()]. See [igblast] for accepted input and available output.
+#'
+#' @section Methods:
+#'
+#' - **`$help()`:** Print IgBLAST and germline-database setup instructions.
+#' - **`$check()`:** Report whether igblastr, IgBLAST, and a germline database
+#'   are ready. Return `TRUE` when all required components are available.
+#' - **`$run(input, config = NULL, output_dir = NULL)`:** Run IgBLAST and return
+#'   an [IgblastRun]. See [igblast] for the three accepted input forms.
+#' - **`$citation()`:** Reserved for future citation support.
 #'
 #' @keywords internal
 IgblastTool <- R6::R6Class(
@@ -136,7 +224,7 @@ IgblastTool <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     #' @description
-    #' Create an IgBLAST adapter. Users should call [tool_igblast()] instead.
+    #' Create an IgBLAST tool. Users should call [tool_igblast()] instead.
     #' @param config An [IgblastToolConfig] returned by [conf_igblast()].
     initialize = function(config = conf_igblast()) {
       checkmate::assert_r6(config, classes = "IgblastToolConfig")
@@ -206,7 +294,35 @@ IgblastTool <- R6::R6Class(
       rlang::abort("IgBLAST `citation()` is not implemented yet.")
     },
     validate_input_impl = function(input, config) {
-      checkmate::assert_r6(input, classes = "ImmunData")
+      if (inherits(input, "ImmunData")) {
+        checkmate::assert_r6(input, classes = "ImmunData")
+        return(input)
+      }
+      checkmate::assert_character(
+        input,
+        min.len = 1L,
+        max.len = 2L,
+        any.missing = FALSE
+      )
+      if (length(input) == 2L) {
+        if (
+          is.null(names(input)) ||
+            !setequal(names(input), c("fasta", "annotations")) ||
+            anyDuplicated(names(input))
+        ) {
+          rlang::abort(paste(
+            "Paired IgBLAST input must be a character vector named",
+            "`fasta` and `annotations`."
+          ))
+        }
+        input <- input[c("fasta", "annotations")]
+      } else {
+        checkmate::assert_string(input, min.chars = 1L)
+      }
+      checkmate::assert_file_exists(input)
+      input_names <- names(input)
+      input <- fs::path_abs(input)
+      names(input) <- input_names
       input
     },
     run_impl = function(input, config, run_dir) {
@@ -227,6 +343,7 @@ IgblastTool <- R6::R6Class(
       input_path <- fs::path(run_dir, "igblast-input.fasta")
       mapping_path <- fs::path(run_dir, "igblast-query-map.parquet")
       output_path <- fs::path(run_dir, "igblast-airr.tsv")
+      final_path <- fs::path(run_dir, "igblast-final.tsv")
       config_path <- fs::path(run_dir, "igblast-config.json")
 
       writeLines(
@@ -268,6 +385,13 @@ IgblastTool <- R6::R6Class(
 
       jsonlite::write_json(
         list(
+          input_type = if (inherits(input, "ImmunData")) {
+            "immundata"
+          } else if (length(input) == 2L) {
+            "fasta_annotations"
+          } else {
+            "fasta"
+          },
           sequence_col = config$sequence_col,
           num_threads = config$num_threads,
           run_args = config$run_args,
@@ -285,12 +409,31 @@ IgblastTool <- R6::R6Class(
         rlang::abort("IgBLAST did not produce AIRR output.")
       }
 
-      list(
+      artifacts <- list(
         input = input_path,
         config = config_path,
         mapping = mapping_path,
         airr = output_path
       )
+      if (!is.null(prepared$annotations)) {
+        airr <- duckplyr::read_csv_duckdb(
+          output_path,
+          options = list(delim = "\t", header = TRUE)
+        )
+        final <- igblast_merge_annotations(
+          airr,
+          prepared$annotations,
+          prepared$annotation_id_col
+        )
+        duckplyr::compute_csv(
+          final,
+          final_path,
+          options = list(delimiter = "\t", header = TRUE)
+        )
+        artifacts$final <- final_path
+      }
+
+      artifacts
     }
   )
 )

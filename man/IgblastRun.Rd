@@ -4,9 +4,8 @@
 \alias{IgblastRun}
 \title{Completed IgBLAST execution}
 \description{
-\code{IgblastRun} is returned by \link{IgblastTool}\verb{$run()}. It contains immutable
-execution metadata and artifact paths. \verb{$results()} returns
-\link{IgblastResults}.
+\link{IgblastTool}\verb{$run()} returns an \code{IgblastRun}. It records the settings and
+where the files were saved. Call \verb{$results()} to obtain \link{IgblastResults}.
 }
 \keyword{internal}
 \section{Super class}{

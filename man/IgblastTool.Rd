@@ -2,10 +2,23 @@
 % Please edit documentation in R/igblast.R
 \name{IgblastTool}
 \alias{IgblastTool}
-\title{IgBLAST adapter}
+\title{Run IgBLAST analyses}
 \description{
-IgBLAST adapter
+\code{IgblastTool} uses one \link{IgblastToolConfig} as its default settings. Create it
+with \code{\link[=tool_igblast]{tool_igblast()}}. See \link{igblast} for accepted input and available output.
 }
+\section{Methods}{
+
+\itemize{
+\item \strong{\verb{$help()}:} Print IgBLAST and germline-database setup instructions.
+\item \strong{\verb{$check()}:} Report whether igblastr, IgBLAST, and a germline database
+are ready. Return \code{TRUE} when all required components are available.
+\item \strong{\verb{$run(input, config = NULL, output_dir = NULL)}:} Run IgBLAST and return
+an \link{IgblastRun}. See \link{igblast} for the three accepted input forms.
+\item \strong{\verb{$citation()}:} Reserved for future citation support.
+}
+}
+
 \keyword{internal}
 \section{Super class}{
 \code{AbstractTool} -> \code{IgblastTool}
@@ -28,7 +41,7 @@ IgBLAST adapter
 \if{html}{\out{<a id="method-IgblastTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-IgblastTool-initialize}{}}}
 \subsection{\code{IgblastTool$new()}}{
-  Create an IgBLAST adapter. Users should call \code{\link[=tool_igblast]{tool_igblast()}} instead.
+  Create an IgBLAST tool. Users should call \code{\link[=tool_igblast]{tool_igblast()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{IgblastTool$new(config = conf_igblast())}
