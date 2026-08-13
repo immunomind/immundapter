@@ -4,10 +4,35 @@
 \name{immundapter-package}
 \alias{immundapter}
 \alias{immundapter-package}
-\title{immundapter: External tool adapters for ImmunData}
+\title{immundapter: Run external immune-repertoire tools from ImmunData}
 \description{
-Connects the Immunarch ecosystem to a rich variety of external tools and reference databases. Tool adapters capture validated analysis recipes, run software, preserve the resulting artifacts, and translate outputs back into annotated ImmunData objects.
+immundapter connects immune-repertoire data in R to external analysis tools
+and reference databases. Each tool prepares the required input, runs the
+external software, records the generated files, and provides results as
+tables, file paths, or updated \link[immundata:ImmunData]{immundata::ImmunData} datasets.
 }
+\section{Analysis-tool workflow}{
+
+Analysis tools use the same sequence:
+
+\if{html}{\out{<div class="sourceCode">}}\preformatted{config <- conf_tcrdist3()
+tool <- tool_tcrdist3(config)
+run <- tool$run(input, output_dir = "analysis/tcrdist3")
+results <- run$results()
+}\if{html}{\out{</div>}}
+
+The accepted \code{input} is different for each tool. See \link{tcrdist3}, \link{igblast},
+\link{immgliph}, or \link{raxml-ng} for exact input columns and result fields. The
+\verb{$run()} records where the files were saved. Use \verb{$results()} to read the
+biological output.
+
+Large result tables remain on disk until needed. Use \code{dplyr::collect()} to
+read a table into R.
+
+VDJdb is a reference database, so it uses a shorter workflow.
+See \code{\link[=data_vdjdb]{data_vdjdb()}} for downloading, loading, and matching VDJdb records.
+}
+
 \author{
 \strong{Maintainer}: Vadim I. Nazarov \email{support@immunomind.com} (\href{https://orcid.org/0000-0003-3659-2709}{ORCID})
 

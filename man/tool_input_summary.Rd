@@ -2,14 +2,13 @@
 % Please edit documentation in R/abstract-tool.R
 \name{tool_input_summary}
 \alias{tool_input_summary}
-\title{Base class for external-tool adapters}
+\title{Base class for external tools}
 \usage{
 tool_input_summary(input)
 }
 \description{
-\code{AbstractTool} handles the parts shared by every adapter: configuration,
-run-directory creation, and immutable \code{ToolRun} construction. Concrete tools
-validate and normalize their supported input types, execute the external
-tool, and select the concrete run class that parses their results.
+\code{AbstractTool} contains the code shared by all external tools. Each tool
+checks its input, runs the external software, and returns its own result
+class.
 }
 \keyword{internal}

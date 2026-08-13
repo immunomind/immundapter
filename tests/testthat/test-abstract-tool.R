@@ -183,7 +183,7 @@ test_that("AbstractTool requires output_dir for unpersisted ImmunData", {
 
   expect_error(
     fixture$tool$run(TestImmunData$new()),
-    "without a persisted snapshot artifacts path",
+    "has not been saved to disk",
     fixed = TRUE
   )
 })

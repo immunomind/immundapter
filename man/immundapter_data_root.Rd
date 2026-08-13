@@ -7,8 +7,7 @@
 immundapter_data_root()
 }
 \description{
-\code{AbstractData} defines the small interface shared by data-source adapters.
-Concrete data sources implement the private hooks.
+\code{AbstractData} contains the code shared by reference-data sources.
 }
 \details{
 Data are stored in \verb{~/immundapter_data/data} by default. Set
