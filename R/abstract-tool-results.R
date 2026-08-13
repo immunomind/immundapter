@@ -2,7 +2,7 @@
 #'
 #' Every result exposes `$annotate(idata)`. Results that cannot annotate
 #' `ImmunData` override the default with a result-specific explanation and next
-#' step; annotatable results override it with their annotation implementation.
+#' step. Results that can add columns to `ImmunData` implement this method.
 #'
 #' @field run The read-only [ToolRun] that produced these results.
 #' @field tool The read-only name of the tool that produced these results.

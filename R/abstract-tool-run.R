@@ -1,15 +1,13 @@
-#' Immutable record of one external-tool execution
+#' Record of one external-tool run
 #'
-#' A `ToolRun` owns resolved execution metadata and artifact paths. Concrete run
-#' classes implement `$results()` so results can be recovered without retaining
-#' or recreating the tool object that launched the run.
+#' A `ToolRun` records the settings, input summary, output directory, and files
+#' created by one run. Use `$results()` to read the biological results.
 #'
 #' @field status Read-only execution status: `"success"` or `"partial"`.
 #' @field tool Read-only name of the tool that created the run.
 #' @field path Read-only path to the run directory.
-#' @field artifacts Read-only named list of result artifact paths.
-#' @field config Read-only plain-list snapshot of the configuration used for
-#'   the run.
+#' @field artifacts Read-only named list of paths to generated files.
+#' @field config Read-only list of settings used for the run.
 #' @field input Read-only provenance summary of the input.
 #'
 #' @keywords internal
@@ -18,7 +16,7 @@ ToolRun <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     #' @description
-    #' Create an immutable record of a tool execution.
+    #' Record a completed tool run.
     #' @param values A named list with `status`, `tool`, `path`, `artifacts`,
     #'   `config`, and `input` entries.
     initialize = function(values) {
@@ -38,8 +36,7 @@ ToolRun <- R6::R6Class(
       private$.input <- values$input
     },
     #' @description
-    #' Read the artifacts as a result object. Concrete run classes select and
-    #' create the appropriate result class.
+    #' Read the result tables and files.
     #' @return A [ToolResults] object for this run.
     results = function() {
       private$results_impl()

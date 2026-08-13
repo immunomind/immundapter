@@ -1,7 +1,6 @@
 #' Base class for immune-repertoire data sources
 #'
-#' `AbstractData` defines the small interface shared by data-source adapters.
-#' Concrete data sources implement the private hooks.
+#' `AbstractData` contains the code shared by reference-data sources.
 #'
 #' Data are stored in `~/immundapter_data/data` by default. Set
 #' `IMMUNDAPTER_DATA` to change the root directory. A concrete data-source

@@ -1,9 +1,8 @@
-#' Base class for external-tool adapters
+#' Base class for external tools
 #'
-#' `AbstractTool` handles the parts shared by every adapter: configuration,
-#' run-directory creation, and immutable `ToolRun` construction. Concrete tools
-#' validate and normalize their supported input types, execute the external
-#' tool, and select the concrete run class that parses their results.
+#' `AbstractTool` contains the code shared by all external tools. Each tool
+#' checks its input, runs the external software, and returns its own result
+#' class.
 #'
 #' @keywords internal
 tool_input_summary <- function(input) {
@@ -43,8 +42,8 @@ resolve_tool_output_dir <- function(input, output_dir) {
   artifacts_path <- input$provenance$artifacts_path
   if (is.null(artifacts_path)) {
     rlang::abort(paste(
-      "`output_dir` is required when `input` is an `ImmunData` object",
-      "without a persisted snapshot artifacts path."
+      "`output_dir` is required for an `ImmunData` dataset",
+      "that has not been saved to disk."
     ))
   }
 

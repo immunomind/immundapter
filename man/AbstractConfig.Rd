@@ -2,11 +2,9 @@
 % Please edit documentation in R/abstract-conf.R
 \name{AbstractConfig}
 \alias{AbstractConfig}
-\title{Base class for tool configuration}
+\title{Base class for tool settings}
 \description{
-Tool configurations are small, validated collections of named values.
-Concrete classes declare their fields and validate them before calling this
-constructor.
+Tool settings are checked when they are created.
 }
 \keyword{internal}
 \section{Methods}{
@@ -20,8 +18,7 @@ constructor.
 \if{html}{\out{<a id="method-AbstractConfig-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-AbstractConfig-initialize}{}}}
 \subsection{\code{AbstractConfig$new()}}{
-  Create a configuration from validated values. Concrete configuration
-classes validate their values before they call this method.
+  Store checked settings.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{AbstractConfig$new(values)}
@@ -30,8 +27,7 @@ classes validate their values before they call this method.
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{values}}{A named list of configuration values. Every name must
-match a public field of the concrete configuration class.}
+      \item{\code{values}}{A named list of settings.}
     }
     \if{html}{\out{</div>}}
   }
@@ -41,15 +37,14 @@ match a public field of the concrete configuration class.}
 \if{html}{\out{<a id="method-AbstractConfig-as_list"></a>}}
 \if{latex}{\out{\hypertarget{method-AbstractConfig-as_list}{}}}
 \subsection{\code{AbstractConfig$as_list()}}{
-  Return a plain-list copy of the configuration.
+  Return a list of settings.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{AbstractConfig$as_list()}
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A named list containing the configuration fields and their
-current values.
+    A named list containing the current settings.
   }
 }
 

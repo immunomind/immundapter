@@ -6,7 +6,7 @@
 \description{
 Every result exposes \verb{$annotate(idata)}. Results that cannot annotate
 \code{ImmunData} override the default with a result-specific explanation and next
-step; annotatable results override it with their annotation implementation.
+step. Results that can add columns to \code{ImmunData} implement this method.
 }
 \keyword{internal}
 \section{Active bindings}{

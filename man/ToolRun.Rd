@@ -2,11 +2,10 @@
 % Please edit documentation in R/abstract-tool-run.R
 \name{ToolRun}
 \alias{ToolRun}
-\title{Immutable record of one external-tool execution}
+\title{Record of one external-tool run}
 \description{
-A \code{ToolRun} owns resolved execution metadata and artifact paths. Concrete run
-classes implement \verb{$results()} so results can be recovered without retaining
-or recreating the tool object that launched the run.
+A \code{ToolRun} records the settings, input summary, output directory, and files
+created by one run. Use \verb{$results()} to read the biological results.
 }
 \keyword{internal}
 \section{Active bindings}{
@@ -18,10 +17,9 @@ or recreating the tool object that launched the run.
 
     \item{\code{path}}{Read-only path to the run directory.}
 
-    \item{\code{artifacts}}{Read-only named list of result artifact paths.}
+    \item{\code{artifacts}}{Read-only named list of paths to generated files.}
 
-    \item{\code{config}}{Read-only plain-list snapshot of the configuration used for
-the run.}
+    \item{\code{config}}{Read-only list of settings used for the run.}
 
     \item{\code{input}}{Read-only provenance summary of the input.}
   }
@@ -38,7 +36,7 @@ the run.}
 \if{html}{\out{<a id="method-ToolRun-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolRun-initialize}{}}}
 \subsection{\code{ToolRun$new()}}{
-  Create an immutable record of a tool execution.
+  Record a completed tool run.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolRun$new(values)}
@@ -58,8 +56,7 @@ the run.}
 \if{html}{\out{<a id="method-ToolRun-results"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolRun-results}{}}}
 \subsection{\code{ToolRun$results()}}{
-  Read the artifacts as a result object. Concrete run classes select and
-create the appropriate result class.
+  Read the result tables and files.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolRun$results()}
