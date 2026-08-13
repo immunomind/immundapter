@@ -4,7 +4,11 @@
 \alias{RaxmlNgResults}
 \title{Parsed RAxML-NG results}
 \description{
-Parsed RAxML-NG results
+\code{RaxmlNgResults} provides tables that describe the family runs and tree
+files. Use \verb{$read_trees()} to read the trees as Newick strings. The tables
+stay on disk until you use \code{dplyr::collect()}.
+
+RAxML-NG trees cannot be added as columns to \code{ImmunData}.
 }
 \keyword{internal}
 \section{Super class}{
@@ -13,12 +17,13 @@ Parsed RAxML-NG results
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{families}}{Lazy duckplyr table with one row per requested family.}
+    \item{\code{families}}{Read-only table with one row per family, including whether
+the analysis succeeded and where its files were saved.}
 
-    \item{\code{tree_index}}{Lazy duckplyr table indexing successful best-tree files.}
+    \item{\code{tree_index}}{Read-only table with one row per successful tree.}
 
-    \item{\code{tip_map}}{Lazy duckplyr mapping from RAxML-safe tip labels to original
-tip identifiers.}
+    \item{\code{tip_map}}{Read-only table with the original tip names and the shorter
+names used in RAxML-NG files.}
   }
   \if{html}{\out{</div>}}
 }
@@ -38,7 +43,8 @@ tip identifiers.}
 \if{html}{\out{<a id="method-RaxmlNgResults-read_trees"></a>}}
 \if{latex}{\out{\hypertarget{method-RaxmlNgResults-read_trees}{}}}
 \subsection{\code{RaxmlNgResults$read_trees()}}{
-  Read successful trees as Newick strings.
+  Read successful trees as Newick strings. A Newick string is a compact
+text representation of a phylogenetic tree.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RaxmlNgResults$read_trees(families = NULL)}
@@ -47,13 +53,14 @@ tip identifiers.}
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{families}}{Optional character vector of family identifiers. \code{NULL}
+      \item{\code{families}}{Optional character vector of family names or numbers. \code{NULL}
 reads every successful tree.}
     }
     \if{html}{\out{</div>}}
   }
   \subsection{Returns}{
-    A named character vector of Newick strings.
+    A named character vector of Newick strings. Vector names are the
+family names or numbers.
   }
 }
 

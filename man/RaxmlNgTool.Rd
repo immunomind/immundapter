@@ -4,17 +4,18 @@
 \alias{RaxmlNgTool}
 \title{Run RAxML-NG family tree inference}
 \description{
-\code{RaxmlNgTool} connects a \link{RaxmlNgToolConfig} to an \code{ImmunData} input and
-returns a separate \link{RaxmlNgRun} for every execution.
+\code{RaxmlNgTool} uses one \link{RaxmlNgToolConfig} as its default settings. Create it
+with \code{\link[=tool_raxml_ng]{tool_raxml_ng()}}. See \link{raxml-ng} for the required \code{ImmunData} input and
+available tree output.
 }
 \section{Methods}{
 
-\describe{
-\item{\verb{$help()}}{Print platform-specific installation guidance.}
-\item{\verb{$check()}}{Check and report the installed executable and version.}
-\item{\verb{$run(input, config = NULL, output_dir = NULL)}}{Prepare aligned
-family FASTAs, run each family, and return a \link{RaxmlNgRun}.}
-\item{\verb{$citation()}}{Reserved for citation metadata.}
+\itemize{
+\item \strong{\verb{$help()}:} Print installation instructions.
+\item \strong{\verb{$check()}:} Check whether RAxML-NG is installed and report its version.
+\item \strong{\verb{$run(input, config = NULL, output_dir = NULL)}:} Prepare one FASTA
+alignment per family, run RAxML-NG, and return a \link{RaxmlNgRun}.
+\item \strong{\verb{$citation()}:} Reserved for future citation support.
 }
 }
 
@@ -40,7 +41,7 @@ family FASTAs, run each family, and return a \link{RaxmlNgRun}.}
 \if{html}{\out{<a id="method-RaxmlNgTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-RaxmlNgTool-initialize}{}}}
 \subsection{\code{RaxmlNgTool$new()}}{
-  Create a RAxML-NG adapter. Users should call \code{\link[=tool_raxml_ng]{tool_raxml_ng()}} instead.
+  Create a RAxML-NG tool. Users should call \code{\link[=tool_raxml_ng]{tool_raxml_ng()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{RaxmlNgTool$new(config = conf_raxml_ng())}

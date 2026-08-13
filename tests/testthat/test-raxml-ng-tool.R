@@ -82,7 +82,7 @@ test_that("RAxML-NG infers and indexes family trees", {
   )
   expect_error(
     results$annotate(idata),
-    "cannot be stored as tabular `ImmunData` annotations",
+    "cannot be added as columns to `ImmunData`",
     class = "immundapter_unannotatable_results"
   )
 })

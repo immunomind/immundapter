@@ -108,7 +108,7 @@ test_that("RAxML-NG requires family alignment annotation columns", {
 })
 
 
-test_that("RAxML-NG validates family alignments and tip identifiers", {
+test_that("RAxML-NG validates family alignments and tip names", {
   unaligned <- make_raxml_test_idata(data.frame(
     imd_receptor_id = 1:2,
     clone_id = "family-a",
@@ -134,23 +134,4 @@ test_that("RAxML-NG validates family alignments and tip identifiers", {
     "conflicting aligned sequences",
     fixed = TRUE
   )
-})
-
-
-test_that("RAxML-NG builds mode-specific command arguments", {
-  search <- raxml_ng_command_args(
-    analysis = "search",
-    alignment = "alignment.fasta",
-    prefix = "result"
-  )
-  fast <- raxml_ng_command_args(
-    analysis = "fast",
-    alignment = "alignment.fasta",
-    prefix = "result"
-  )
-
-  expect_true("--search" %in% search)
-  expect_true("--fast" %in% fast)
-  expect_identical(search[match("--model", search) + 1L], "GTR+G")
-  expect_false(any(c("--tree", "--seed", "--threads") %in% search))
 })

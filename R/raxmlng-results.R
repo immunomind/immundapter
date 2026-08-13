@@ -1,9 +1,16 @@
 #' Parsed RAxML-NG results
 #'
-#' @field families Lazy duckplyr table with one row per requested family.
-#' @field tree_index Lazy duckplyr table indexing successful best-tree files.
-#' @field tip_map Lazy duckplyr mapping from RAxML-safe tip labels to original
-#'   tip identifiers.
+#' `RaxmlNgResults` provides tables that describe the family runs and tree
+#' files. Use `$read_trees()` to read the trees as Newick strings. The tables
+#' stay on disk until you use `dplyr::collect()`.
+#'
+#' RAxML-NG trees cannot be added as columns to `ImmunData`.
+#'
+#' @field families Read-only table with one row per family, including whether
+#'   the analysis succeeded and where its files were saved.
+#' @field tree_index Read-only table with one row per successful tree.
+#' @field tip_map Read-only table with the original tip names and the shorter
+#'   names used in RAxML-NG files.
 #'
 #' @keywords internal
 RaxmlNgResults <- R6::R6Class(
@@ -11,10 +18,13 @@ RaxmlNgResults <- R6::R6Class(
   inherit = ToolResults,
   cloneable = FALSE,
   public = list(
-    #' @description Read successful trees as Newick strings.
-    #' @param families Optional character vector of family identifiers. `NULL`
+    #' @description
+    #' Read successful trees as Newick strings. A Newick string is a compact
+    #' text representation of a phylogenetic tree.
+    #' @param families Optional character vector of family names or numbers. `NULL`
     #'   reads every successful tree.
-    #' @return A named character vector of Newick strings.
+    #' @return A named character vector of Newick strings. Vector names are the
+    #'   family names or numbers.
     read_trees = function(families = NULL) {
       checkmate::assert_character(families, unique = TRUE, null.ok = TRUE)
       index <- self$tree_index |>
@@ -71,9 +81,9 @@ RaxmlNgResults <- R6::R6Class(
     annotate_impl = function(idata, ...) {
       rlang::abort(
         paste(
-          "RAxML-NG trees cannot be stored as tabular `ImmunData`",
-          "annotations. Use `$tree_index`, `$tip_map`, or `$read_trees()`",
-          "to work with the file-backed phylogenetic results."
+          "RAxML-NG trees cannot be added as columns to `ImmunData`.",
+          "Use `$tree_index`, `$tip_map`, or `$read_trees()`",
+          "to work with the phylogenetic trees and their files."
         ),
         class = "immundapter_unannotatable_results"
       )

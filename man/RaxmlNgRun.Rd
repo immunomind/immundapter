@@ -4,9 +4,9 @@
 \alias{RaxmlNgRun}
 \title{Completed RAxML-NG execution}
 \description{
-\code{RaxmlNgRun} records the configuration, input provenance, status, and
-artifacts for one family-level batch. Call \verb{$results()} to obtain
-\link{RaxmlNgResults}.
+\code{RaxmlNgRun} records one completed family-level analysis: the settings used,
+an input summary, the output directory, and paths to generated files. It is
+not a tree. Call \verb{$results()} to obtain \link{RaxmlNgResults}.
 }
 \keyword{internal}
 \section{Super class}{

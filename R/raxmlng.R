@@ -1,66 +1,84 @@
 #' Infer B-cell family trees with RAxML-NG
 #'
-#' The RAxML-NG adapter reads family-level aligned sequences from
-#' [immundata::ImmunData] annotations, writes one FASTA alignment per family,
-#' and independently infers one maximum-likelihood tree per family.
-#' It does not assign clones, reconstruct germlines, or align sequences.
+#' RAxML-NG builds a phylogenetic tree for each B-cell clone or family. This
+#' tool takes aligned nucleotide sequences from [immundata::ImmunData] and
+#' runs each family independently. It does not identify clones, reconstruct
+#' germline sequences, or align sequences. Complete these steps before running
+#' RAxML-NG.
 #'
-#' @section Input contract:
-#' `tool$run()` accepts an `ImmunData` object. `alignment_col`, `family_col`,
-#' and `tip_col` name columns in `input$annotations`. They are annotations, not
-#' receptor-schema features: a family alignment is derived from a group of
-#' receptors and must not define receptor identity.
+#' @section Input to `tool$run()`:
+#' `tool$run()` accepts one [immundata::ImmunData] dataset. It does not accept a
+#' FASTA file directly. The dataset must contain three columns:
 #'
-#' `family_col` groups receptors into independent alignments. `tip_col`
-#' identifies the leaves within each family, and `alignment_col` contains one
-#' family-aligned nucleotide string for each leaf. Repeated annotation rows
-#' with the same family, tip, and alignment are collapsed. Conflicting rows for
-#' one family and tip are rejected. All entries in a family must have the same
-#' aligned length.
+#' - **`family_col`:** Clone, lineage, or family name. A separate tree is built
+#'   for each value in this column.
+#' - **`tip_col`:** Sequence name shown at the tips, or leaves, of the tree.
+#'   Each sequence within a family must have a different name.
+#' - **`alignment_col`:** Aligned nucleotide sequence. All sequences in one
+#'   family must have the same length.
 #'
-#' For a paired receptor schema, `locus` filters the long annotation table to
-#' the selected chain. For a single-chain schema, the configured locus must
-#' match the schema chain when the schema declares one.
+#' All three values must be present and non-empty. Repeated rows with the same
+#' family, tip, and aligned sequence are used once. A tip cannot have two
+#' different sequences in the same family.
+#'
+#' `locus` selects the B-cell receptor chain used for the tree. With paired
+#' receptors, only the selected chain is used. The selected locus must agree
+#' with the chains stored in the `ImmunData` dataset.
 #'
 #' @section Analysis modes:
-#' The initial adapter supports two RAxML-NG tree-inference commands:
-#' \describe{
-#'   \item{`"search"`}{A standard maximum-likelihood tree search.}
-#'   \item{`"fast"`}{The RAxML-NG fast-search shortcut.}
-#' }
+#' The tool supports two RAxML-NG tree-inference commands:
 #'
-#' Modes that consume existing trees or produce different scientific objects,
+#' - **`"search"`:** Standard maximum-likelihood tree search.
+#' - **`"fast"`:** Faster tree search.
+#'
+#' Modes that use existing trees or produce other types of output,
 #' including `evaluate`, `bootstrap`, `support`, and `ancestral`, are not part
-#' of this interface. Both supported modes use the nucleotide model `GTR+G`.
-#' RAxML-NG controls its own threads, starting trees, random seed, and other
-#' execution settings.
+#' of this tool. Both supported modes use the nucleotide model `GTR+G`.
+#' RAxML-NG chooses its own number of computer threads, starting trees, random
+#' seed, and other run settings.
 #'
-#' @section Runs and results:
-#' Every family is isolated in its own directory with its normalized FASTA,
-#' RAxML-NG files, stdout, and stderr. The run succeeds only when every family
-#' produces its expected best tree. If a family fails, all completed family
-#' outputs and logs remain in the run directory and `run()` reports an error.
+#' @section Output from `tool$run()`:
+#' `tool$run()` returns a [RaxmlNgRun]. It records where the results were
+#' saved. To read the trees, first run `results <- run$results()`.
 #'
-#' `run$results()` returns [RaxmlNgResults]. Its `families`, `tree_index`, and
-#' `tip_map` fields are lazy duckplyr tables. Tree files remain on disk; use
-#' `results$read_trees()` to read selected Newick strings.
+#' [RaxmlNgResults] provides:
 #'
-#' @param alignment_col Annotation column containing the nucleotide sequence
-#'   aligned within its family. This is not IgBLAST's AIRR
-#'   `sequence_alignment` field.
-#' @param family_col Annotation column containing B-cell clone, lineage, or
-#'   family identifiers. Each value is analyzed independently.
-#' @param tip_col Stable identifier for tree tips. The default is the canonical
-#'   `ImmunData` receptor identifier.
-#' @param locus B-cell receptor locus to analyze.
-#' @param analysis Tree-inference mode: `"search"` or `"fast"`.
+#' - **`results$families`:** One row per family, showing whether the analysis
+#'   succeeded and where its files were saved. Use `dplyr::collect()` to read
+#'   the table into R.
+#' - **`results$tree_index`:** The families that produced a tree and the path
+#'   to each tree file.
+#' - **`results$tip_map`:** The original value from `tip_col` and the shorter
+#'   tip label used in the RAxML-NG files.
+#' - **`results$read_trees()`:** One Newick tree per family, returned as a named
+#'   character vector. The vector names are the family values.
+#'
+#' Tree files remain in the run directory. Trees cannot be added as columns to
+#' `ImmunData`. Use `$read_trees()`, `$tree_index`, or `$tip_map` for downstream
+#' phylogenetic analysis.
+#'
+#' Each family has its own directory containing the prepared FASTA file,
+#' RAxML-NG output, and log files. A run is successful only when every family
+#' produces a best tree. If one family fails, completed files are kept and
+#' `tool$run()` reports an error.
+#'
+#' @param alignment_col Name of the column containing the aligned
+#'   nucleotide sequence for each tree tip. This is not IgBLAST's AIRR
+#'   `sequence_alignment` field, which aligns each sequence to a germline rather
+#'   than to the other sequences in its family.
+#' @param family_col Column containing B-cell clone, lineage, or
+#'   family names or numbers. Each value is analyzed independently.
+#' @param tip_col Name of the column containing the sequence name used at each
+#'   tree tip. The default is the `ImmunData` receptor ID column.
+#' @param locus B-cell receptor locus to use: `"IGH"`, `"IGK"`, or `"IGL"`.
+#' @param analysis Tree-inference mode. `"search"` performs the standard
+#'   maximum-likelihood search; `"fast"` performs the faster search.
 #' @param config A [RaxmlNgToolConfig] created by [conf_raxml_ng()].
 #'
 #' @return `conf_raxml_ng()` returns a read-only [RaxmlNgToolConfig].
 #'   `tool_raxml_ng()` returns a reusable [RaxmlNgTool].
 #'
-#' @examples
-#' \dontrun{
+#' @examplesIf interactive()
 #' config <- conf_raxml_ng(
 #'   alignment_col = "clone_sequence_alignment",
 #'   family_col = "clone_id",
@@ -73,11 +91,10 @@
 #' results <- run$results()
 #' dplyr::collect(results$tree_index)
 #' trees <- results$read_trees()
-#' }
-#'
+#' @name raxml-ng
 #' @seealso
-#'   \url{https://github.com/amkozlov/raxml-ng/wiki/Input-data},
-#'   \url{https://github.com/amkozlov/raxml-ng/wiki/Output:-files-and-settings}
+#'   [RAxML-NG input](https://github.com/amkozlov/raxml-ng/wiki/Input-data),
+#'   [RAxML-NG output](https://github.com/amkozlov/raxml-ng/wiki/Output:-files-and-settings)
 #' @export
 conf_raxml_ng <- function(alignment_col = "clone_sequence_alignment",
                           family_col = "clone_id",
@@ -96,25 +113,27 @@ conf_raxml_ng <- function(alignment_col = "clone_sequence_alignment",
 }
 
 
-#' @rdname conf_raxml_ng
+#' @rdname raxml-ng
 #' @export
 tool_raxml_ng <- function(config = conf_raxml_ng()) {
   RaxmlNgTool$new(config)
 }
 
 
-#' RAxML-NG tool configuration
+#' @rdname raxml-ng
 #'
-#' `RaxmlNgToolConfig` is an immutable recipe for one family-level RAxML-NG
-#' analysis. Create it with [conf_raxml_ng()].
+#' @description
+#' `RaxmlNgToolConfig` stores validated settings for one type of family-level
+#' RAxML-NG analysis. It contains no sequences and no trees. Create it with
+#' [conf_raxml_ng()] and pass it to [tool_raxml_ng()]. The settings cannot be
+#' changed after creation; call [conf_raxml_ng()] again to use different
+#' settings.
 #'
-#' @field alignment_col Family-aligned nucleotide annotation column.
-#' @field family_col Family identifier annotation column.
-#' @field tip_col Stable tree-tip identifier.
+#' @field alignment_col Column containing family-aligned nucleotides.
+#' @field family_col Column containing the family name or number.
+#' @field tip_col Column containing the sequence name used at each tree tip.
 #' @field locus B-cell receptor locus analyzed.
 #' @field analysis RAxML-NG inference mode.
-#'
-#' @keywords internal
 RaxmlNgToolConfig <- R6::R6Class(
   classname = "RaxmlNgToolConfig",
   inherit = AbstractConfig,
@@ -126,9 +145,9 @@ RaxmlNgToolConfig <- R6::R6Class(
     locus = NULL,
     analysis = NULL,
     #' @description
-    #' Create a validated RAxML-NG configuration. Users should call
+    #' Create checked RAxML-NG settings. Users should call
     #' [conf_raxml_ng()] instead.
-    #' @param values A named list of RAxML-NG configuration values.
+    #' @param values A named list of RAxML-NG settings.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_string(values$alignment_col, min.chars = 1L)
@@ -154,17 +173,17 @@ RaxmlNgToolConfig <- R6::R6Class(
 
 #' Run RAxML-NG family tree inference
 #'
-#' `RaxmlNgTool` connects a [RaxmlNgToolConfig] to an `ImmunData` input and
-#' returns a separate [RaxmlNgRun] for every execution.
+#' `RaxmlNgTool` uses one [RaxmlNgToolConfig] as its default settings. Create it
+#' with [tool_raxml_ng()]. See [raxml-ng] for the required `ImmunData` input and
+#' available tree output.
 #'
 #' @section Methods:
-#' \describe{
-#'   \item{`$help()`}{Print platform-specific installation guidance.}
-#'   \item{`$check()`}{Check and report the installed executable and version.}
-#'   \item{`$run(input, config = NULL, output_dir = NULL)`}{Prepare aligned
-#'   family FASTAs, run each family, and return a [RaxmlNgRun].}
-#'   \item{`$citation()`}{Reserved for citation metadata.}
-#' }
+#'
+#' - **`$help()`:** Print installation instructions.
+#' - **`$check()`:** Check whether RAxML-NG is installed and report its version.
+#' - **`$run(input, config = NULL, output_dir = NULL)`:** Prepare one FASTA
+#'   alignment per family, run RAxML-NG, and return a [RaxmlNgRun].
+#' - **`$citation()`:** Reserved for future citation support.
 #'
 #' @keywords internal
 RaxmlNgTool <- R6::R6Class(
@@ -173,7 +192,7 @@ RaxmlNgTool <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     #' @description
-    #' Create a RAxML-NG adapter. Users should call [tool_raxml_ng()] instead.
+    #' Create a RAxML-NG tool. Users should call [tool_raxml_ng()] instead.
     #' @param config A [RaxmlNgToolConfig] returned by [conf_raxml_ng()].
     initialize = function(config = conf_raxml_ng()) {
       checkmate::assert_r6(config, classes = "RaxmlNgToolConfig")
