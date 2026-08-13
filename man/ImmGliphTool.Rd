@@ -2,10 +2,23 @@
 % Please edit documentation in R/immgliph.R
 \name{ImmGliphTool}
 \alias{ImmGliphTool}
-\title{ImmGLIPH adapter}
+\title{Run ImmGLIPH analyses}
 \description{
-ImmGLIPH adapter
+\code{ImmGliphTool} uses one \link{ImmGliphToolConfig} as its default settings. Create
+it with \code{\link[=tool_immgliph]{tool_immgliph()}}. See \link{immgliph} for the required \code{ImmunData} input
+and available output.
 }
+\section{Methods}{
+
+\itemize{
+\item \strong{\verb{$help()}:} Print ImmGLIPH installation instructions.
+\item \strong{\verb{$check()}:} Report whether the immGLIPH R package is available.
+\item \strong{\verb{$run(input, config = NULL, output_dir = NULL)}:} Run ImmGLIPH on an
+\code{ImmunData} dataset and return an \link{ImmGliphRun}.
+\item \strong{\verb{$citation()}:} Reserved for future citation support.
+}
+}
+
 \keyword{internal}
 \section{Super class}{
 \code{AbstractTool} -> \code{ImmGliphTool}
@@ -28,7 +41,7 @@ ImmGLIPH adapter
 \if{html}{\out{<a id="method-ImmGliphTool-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-ImmGliphTool-initialize}{}}}
 \subsection{\code{ImmGliphTool$new()}}{
-  Create an ImmGLIPH adapter. Users should call \code{\link[=tool_immgliph]{tool_immgliph()}} instead.
+  Create an ImmGLIPH tool. Users should call \code{\link[=tool_immgliph]{tool_immgliph()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ImmGliphTool$new(config = conf_immgliph())}

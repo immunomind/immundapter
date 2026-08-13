@@ -1,28 +1,77 @@
-#' Configure or create an ImmGLIPH adapter
+#' Group similar T-cell receptors with ImmGLIPH
 #'
-#' `conf_immgliph()` validates ImmGLIPH parameters. `tool_immgliph()` creates
-#' the adapter from that configuration.
+#' ImmGLIPH groups T-cell receptor beta chains that share sequence patterns and
+#' may recognize related antigens. The analysis uses CDR3 amino-acid sequences
+#' and can also use V genes, donor names, HLA types, and clone counts.
 #'
-#' @section Development status:
-#' ImmGLIPH configuration, execution, result parsing, and annotation are
-#' available. Citation metadata are planned for the next version.
+#' @section Input to `tool$run()`:
+#' `tool$run()` accepts one [immundata::ImmunData] dataset. It does not accept a
+#' text file directly. The dataset must contain TRB receptors. For paired
+#' TRA/TRB data, only the TRB chain is used.
 #'
-#' @param method ImmGLIPH preset: `"gliph2"`, `"gliph1"`, or `"custom"`.
-#' @param reference Built-in ImmGLIPH reference repertoire name.
-#' @param cdr3_col Column containing CDR3 amino-acid sequences.
-#' @param v_gene_col Optional V-gene column.
-#' @param patient_col Optional donor or sample column.
-#' @param hla_col Optional HLA column.
-#' @param counts_col Optional clone-count column.
-#' @param n_cores Number of cores passed to ImmGLIPH.
-#' @param seed Optional random seed used around the ImmGLIPH call.
+#' `cdr3_col` must name a column containing TRB CDR3 amino-acid sequences.
+#' Missing and empty CDR3 values are skipped. The other input columns are
+#' optional: set `v_gene_col`, `patient_col`, `hla_col`, or `counts_col` only
+#' when the analysis should use those data. Every selected column must exist in
+#' the `ImmunData` dataset.
+#'
+#' @section Output from `tool$run()`:
+#' `tool$run()` returns an [ImmGliphRun]. It records where the results were
+#' saved. To read the result tables, first run `results <- run$results()`.
+#'
+#' [ImmGliphResults] provides:
+#'
+#' - **`results$groups`:** One row for each receptor assigned to a group. The
+#'   `immgliph_group_id` column gives the group. Receptors without a group are
+#'   absent. Use `dplyr::collect()` to read the table into R.
+#' - **`results$connections`:** Sequence pairs connected by ImmGLIPH and the
+#'   reason for each connection.
+#' - **`results$cluster_properties`:** One row per group with the properties and
+#'   scores calculated by ImmGLIPH.
+#' - **`results$mapping`:** The receptor columns that were passed to ImmGLIPH.
+#' - **`results$raw_output`:** Path to the original ImmGLIPH `.rds` file.
+#' - **`results$annotate(idata)`:** A new `ImmunData` dataset with an
+#'   `immgliph_group_id` receptor column. Receptors without a group have `NA`.
+#'
+#' @param method ImmGLIPH analysis preset: `"gliph2"`, `"gliph1"`, or
+#'   `"custom"`.
+#' @param reference Name of the reference repertoire included with ImmGLIPH.
+#' @param cdr3_col Name of the column containing TRB CDR3 amino-acid
+#'   sequences.
+#' @param v_gene_col Optional name of the TRB V-gene column.
+#' @param patient_col Optional name of the donor or sample column.
+#' @param hla_col Optional name of the HLA column.
+#' @param counts_col Optional name of the clone-count column.
+#' @param n_cores Positive integer number of CPU cores used by ImmGLIPH.
+#' @param seed Optional integer random seed for a reproducible ImmGLIPH run.
 #' @param run_args Additional named arguments passed to `immGLIPH::runGLIPH()`.
+#'   Use this only for advanced ImmGLIPH settings. Arguments controlled by
+#'   immundapter cannot be changed here.
 #' @param config An [ImmGliphToolConfig] created by `conf_immgliph()`.
 #'
-#' @return `conf_immgliph()` returns an ImmGLIPH configuration.
-#'   `tool_immgliph()` returns an ImmGLIPH adapter.
+#' @return [conf_immgliph()] returns a read-only [ImmGliphToolConfig].
+#'   [tool_immgliph()] returns a reusable [ImmGliphTool].
 #'
-#' @seealso \url{https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH}
+#' @examplesIf interactive()
+#' config <- conf_immgliph(
+#'   v_gene_col = "v_call",
+#'   patient_col = "donor",
+#'   n_cores = 4L,
+#'   seed = 1L
+#' )
+#' tool <- tool_immgliph(config)
+#' tool$help()
+#'
+#' tool$check()
+#' run <- tool$run(idata, output_dir = "analysis/immgliph")
+#' results <- run$results()
+#'
+#' groups <- dplyr::collect(results$groups)
+#' group_scores <- dplyr::collect(results$cluster_properties)
+#' grouped_idata <- results$annotate(idata)
+#' @name immgliph
+#' @seealso
+#'   [ImmGLIPH manual](https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH)
 #' @export
 conf_immgliph <- function(method = "gliph2",
                           reference = "human_v2.0_CD48",
@@ -49,14 +98,19 @@ conf_immgliph <- function(method = "gliph2",
 }
 
 
-#' @rdname conf_immgliph
+#' @rdname immgliph
 #' @export
 tool_immgliph <- function(config = conf_immgliph()) {
   ImmGliphTool$new(config)
 }
 
 
-#' ImmGLIPH tool configuration
+#' @rdname immgliph
+#'
+#' @description
+#' `ImmGliphToolConfig` stores the validated settings for an ImmGLIPH analysis.
+#' It contains no repertoire data and no results. Create it with
+#' [conf_immgliph()] and pass it to [tool_immgliph()].
 #'
 #' @field method ImmGLIPH preset: `"gliph2"`, `"gliph1"`, or `"custom"`.
 #' @field reference Built-in ImmGLIPH reference repertoire name.
@@ -68,8 +122,6 @@ tool_immgliph <- function(config = conf_immgliph()) {
 #' @field n_cores Number of cores passed to ImmGLIPH.
 #' @field seed Optional random seed used around the ImmGLIPH call.
 #' @field run_args Additional named arguments for `immGLIPH::runGLIPH()`.
-#'
-#' @keywords internal
 ImmGliphToolConfig <- R6::R6Class(
   classname = "ImmGliphToolConfig",
   inherit = AbstractConfig,
@@ -86,9 +138,9 @@ ImmGliphToolConfig <- R6::R6Class(
     seed = NULL,
     run_args = NULL,
     #' @description
-    #' Create a validated ImmGLIPH configuration. Users should call
+    #' Create checked ImmGLIPH settings. Users should call
     #' [conf_immgliph()] instead.
-    #' @param values A named list of ImmGLIPH configuration values.
+    #' @param values A named list of ImmGLIPH settings.
     initialize = function(values) {
       checkmate::assert_list(values, names = "unique")
       checkmate::assert_choice(
@@ -111,7 +163,19 @@ ImmGliphToolConfig <- R6::R6Class(
 )
 
 
-#' ImmGLIPH adapter
+#' Run ImmGLIPH analyses
+#'
+#' `ImmGliphTool` uses one [ImmGliphToolConfig] as its default settings. Create
+#' it with [tool_immgliph()]. See [immgliph] for the required `ImmunData` input
+#' and available output.
+#'
+#' @section Methods:
+#'
+#' - **`$help()`:** Print ImmGLIPH installation instructions.
+#' - **`$check()`:** Report whether the immGLIPH R package is available.
+#' - **`$run(input, config = NULL, output_dir = NULL)`:** Run ImmGLIPH on an
+#'   `ImmunData` dataset and return an [ImmGliphRun].
+#' - **`$citation()`:** Reserved for future citation support.
 #'
 #' @keywords internal
 ImmGliphTool <- R6::R6Class(
@@ -120,16 +184,20 @@ ImmGliphTool <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     #' @description
-    #' Create an ImmGLIPH adapter. Users should call [tool_immgliph()] instead.
+    #' Create an ImmGLIPH tool. Users should call [tool_immgliph()] instead.
     #' @param config An [ImmGliphToolConfig] returned by [conf_immgliph()].
     initialize = function(config = conf_immgliph()) {
       checkmate::assert_r6(config, classes = "ImmGliphToolConfig")
-      super$initialize("immgliph", config)
+      super$initialize("immgliph", config, ImmGliphRun)
     }
   ),
   private = list(
     help_impl = function() {
-      command <- 'pak::pak("BorchLab/immGLIPH")'
+      command <- paste0(
+        'install.packages("immGLIPH", repos = c(',
+        '"https://bioc.r-universe.dev", ',
+        '"https://cloud.r-project.org"))'
+      )
       documentation <- paste0(
         "https://bioc.r-universe.dev/immGLIPH/",
         "doc/manual.html#runGLIPH"
@@ -158,15 +226,12 @@ ImmGliphTool <- R6::R6Class(
       cli::cli_end(div)
     },
     check_impl = function() {
-      installed <- requireNamespace("immGLIPH", quietly = TRUE) &&
-        exists("runGLIPH", envir = asNamespace("immGLIPH"), inherits = FALSE)
+      runtime <- immgliph_runtime_info()
 
-      if (installed) {
-        version <- as.character(utils::packageVersion("immGLIPH"))
-        path <- system.file(package = "immGLIPH")
+      if (runtime$installed) {
         cli::cli_inform(c(
-          "v" = "{.pkg immGLIPH} {version} is installed.",
-          ">" = "Location: {.path {path}}"
+          "v" = "{.pkg immGLIPH} {runtime$version} is installed.",
+          ">" = "Location: {.path {runtime$path}}"
         ))
       } else {
         cli::cli_inform(c(
@@ -175,42 +240,29 @@ ImmGliphTool <- R6::R6Class(
         ))
       }
 
-      installed
+      runtime$installed
     },
     citation_impl = function() {
       rlang::abort("ImmGLIPH `citation()` is not implemented yet.")
     },
     validate_input_impl = function(input, config) {
+      if (!inherits(input, "ImmunData")) {
+        rlang::abort("Pass an `ImmunData` dataset to ImmGLIPH.")
+      }
       checkmate::assert_r6(input, classes = "ImmunData")
       input
     },
     run_impl = function(input, config, run_dir) {
-      if (!requireNamespace("immGLIPH", quietly = TRUE)) {
+      if (!immgliph_runtime_info()$installed) {
         private$help_impl()
-        rlang::abort("immGLIPH is required to run this adapter.")
+        rlang::abort("Install immGLIPH before running this tool.")
       }
 
-      idata <- input
-      receptor_col <- immundata::imd_schema("receptor")
-      locus_col <- immundata::imd_schema("locus")
-      input_columns <- c(
-        CDR3b = config$cdr3_col,
-        TRBV = config$v_gene_col,
-        patient = config$patient_col,
-        HLA = config$hla_col,
-        counts = config$counts_col
-      )
-      selected_columns <- unique(c(receptor_col, unname(input_columns)))
-
-      mapping <- idata$annotations |>
-        dplyr::filter(!!rlang::sym(locus_col) == "TRB") |>
-        dplyr::select(dplyr::all_of(selected_columns)) |>
-        dplyr::filter(!is.na(!!rlang::sym(config$cdr3_col))) |>
-        dplyr::filter(!!rlang::sym(config$cdr3_col) != "") |>
-        dplyr::distinct()
+      prepared <- immgliph_prepare_immundata(input, config)
+      mapping <- prepared$mapping
 
       input <- mapping |>
-        dplyr::select(dplyr::all_of(input_columns)) |>
+        dplyr::select(dplyr::all_of(prepared$input_columns)) |>
         dplyr::distinct() |>
         dplyr::collect()
 
@@ -221,6 +273,12 @@ ImmGliphTool <- R6::R6Class(
       input_path <- fs::path(run_dir, "immgliph-input.tsv")
       mapping_path <- fs::path(run_dir, "immgliph-mapping.parquet")
       result_path <- fs::path(run_dir, "immgliph-result.rds")
+      groups_path <- fs::path(run_dir, "immgliph-groups.parquet")
+      connections_path <- fs::path(run_dir, "immgliph-connections.parquet")
+      properties_path <- fs::path(
+        run_dir,
+        "immgliph-cluster-properties.parquet"
+      )
 
       utils::write.table(
         input,
@@ -246,68 +304,47 @@ ImmGliphTool <- R6::R6Class(
       )
 
       result <- if (is.null(config$seed)) {
-        do.call(getExportedValue("immGLIPH", "runGLIPH"), arguments)
+        immgliph_call(arguments)
       } else {
         withr::with_seed(
           config$seed,
-          do.call(getExportedValue("immGLIPH", "runGLIPH"), arguments)
+          immgliph_call(arguments)
         )
       }
       saveRDS(result, result_path)
 
+      groups <- immgliph_build_groups(
+        result = result,
+        mapping = mapping,
+        cdr3_col = config$cdr3_col
+      )
+      duckplyr::compute_parquet(groups, groups_path)
+
+      connections <- result$connections
+      if (!is.data.frame(connections)) {
+        rlang::abort(
+          "ImmGLIPH output `connections` must be a data frame."
+        )
+      }
+      connections <- duckplyr::as_duckdb_tibble(connections)
+      duckplyr::compute_parquet(connections, connections_path)
+
+      properties <- result$cluster_properties
+      if (!is.data.frame(properties)) {
+        rlang::abort(
+          "ImmGLIPH output `cluster_properties` must be a data frame."
+        )
+      }
+      properties <- duckplyr::as_duckdb_tibble(properties)
+      duckplyr::compute_parquet(properties, properties_path)
+
       list(
         result = result_path,
         input = input_path,
-        mapping = mapping_path
-      )
-    },
-    results_impl = function(run) {
-      checkmate::assert_file_exists(run$artifacts$result)
-      checkmate::assert_file_exists(run$artifacts$mapping)
-
-      raw <- readRDS(run$artifacts$result)
-      clusters <- raw$cluster_list
-
-      if (length(clusters) == 0L) {
-        membership <- data.frame(
-          CDR3b = character(),
-          immgliph_group_id = character()
-        )
-      } else {
-        membership <- do.call(
-          rbind,
-          Map(
-            function(cluster, group_id) {
-              data.frame(
-                CDR3b = as.character(cluster$CDR3b),
-                immgliph_group_id = group_id
-              )
-            },
-            clusters,
-            names(clusters)
-          )
-        )
-      }
-
-      membership <- duckplyr::as_duckdb_tibble(membership)
-      mapping <- duckplyr::read_parquet_duckdb(run$artifacts$mapping)
-      receptor_col <- immundata::imd_schema("receptor")
-
-      mapping |>
-        dplyr::select(dplyr::all_of(c(receptor_col, run$config$cdr3_col))) |>
-        dplyr::rename(CDR3b = dplyr::all_of(run$config$cdr3_col)) |>
-        dplyr::inner_join(membership, by = "CDR3b") |>
-        dplyr::select(
-          dplyr::all_of(c(receptor_col, "immgliph_group_id"))
-        ) |>
-        dplyr::distinct()
-    },
-    annotate_impl = function(idata, results, ...) {
-      immundata::annotate_receptors(
-        idata = idata,
-        annotations = results,
-        annot_col = immundata::imd_schema("receptor"),
-        ...
+        mapping = mapping_path,
+        groups = groups_path,
+        connections = connections_path,
+        cluster_properties = properties_path
       )
     }
   )
