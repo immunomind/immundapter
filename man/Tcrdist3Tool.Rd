@@ -7,93 +7,72 @@
 \code{Tcrdist3Tool} connects a \link{Tcrdist3ToolConfig} to input data and the Python
 tcrdist3 runner. Create it with \code{\link[=tool_tcrdist3]{tool_tcrdist3()}}, then call \verb{$run()} for
 each input. The tool itself contains neither the input nor results; every
-execution returns a separate \link{Tcrdist3Run}.
+run returns a separate \link{Tcrdist3Run}.
 
 See \link{tcrdist3} for the complete workflow, input formats, single- versus
-paired-chain configuration, and clustering algorithm.
+paired-chain settings, and clustering method.
 }
 \section{Read-only fields}{
 
-\describe{
-\item{\code{name}}{Always \code{"tcrdist3"}.}
-\item{\code{config}}{The read-only \link{Tcrdist3ToolConfig} used by default for
-runs.}
+\itemize{
+\item \strong{\code{name}:} Always \code{"tcrdist3"}.
+\item \strong{\code{config}:} The \link{Tcrdist3ToolConfig} used by default for new runs.
 }
 }
 
 \section{Methods}{
 
-\describe{
-\item{\verb{$help()}}{Print, but do not execute, the uv commands needed to
-create the managed Python environment and install tcrdist3.}
-\item{\verb{$check()}}{Check that the configured Python exists and can import
-\code{tcrdist}. Report the Python path and version. Return \code{TRUE} when the check
-succeeds and \code{FALSE} otherwise.}
-\item{\verb{$run(input, config = NULL, output_dir = NULL)}}{Normalize a text
-file or \link[immundata:ImmunData]{immundata::ImmunData}, execute tcrdist3, and return a
-\link{Tcrdist3Run}. \code{mode = "cluster"} clusters the combined distance matrix;
-\code{mode = "distance"} stops after producing the mapping and distance
-matrix. Pass \code{config} to override the tool's default configuration for
-this run only. If \code{output_dir} is omitted, file inputs use the user home
-and persisted \code{ImmunData} inputs use the current snapshot's artifact
-directory.}
-\item{\verb{$citation()}}{Reserved for citation metadata; currently reports
-that citation support is not implemented.}
+\itemize{
+\item \strong{\verb{$help()}:} Print the commands needed to install tcrdist3. The commands
+are not run automatically.
+\item \strong{\verb{$check()}:} Check whether Python and tcrdist3 are ready. Return \code{TRUE}
+when they are ready and \code{FALSE} otherwise.
+\item \strong{\verb{$run(input, config = NULL, output_dir = NULL)}:} Analyze a text file or
+\link[immundata:ImmunData]{immundata::ImmunData} dataset and return a \link{Tcrdist3Run}. Pass \code{config} to
+use different settings for this run only.
+\item \strong{\verb{$citation()}:} Reserved for future citation support.
 }
 }
 
 \section{Runs and results}{
 
-\verb{$run()} creates a new run directory and returns an immutable
-\link{Tcrdist3Run} with:
-\describe{
-\item{\code{status}}{\code{"success"} after the external process completes.}
-\item{\code{tool}}{The tool name, \code{"tcrdist3"}.}
-\item{\code{path}}{The run directory.}
-\item{\code{config}}{A plain-list snapshot of the configuration used.}
-\item{\code{input}}{A provenance-safe summary of the input.}
-\item{\code{artifacts}}{Paths to the generated files described below.}
-}
+\verb{$run()} creates a new output directory and returns a \link{Tcrdist3Run}. Its
+\verb{$path} gives the output directory, \verb{$config} gives the settings used, and
+\verb{$artifacts} gives the paths to files created by tcrdist3.
 
-Call \code{run$results()} to obtain immutable results. Both
-\link{Tcrdist3ClusterResults} and \link{Tcrdist3DistanceResults} expose a lazy
-duckplyr \verb{$mapping} and a \verb{$distances} NumPy matrix path. Cluster results
-additionally expose lazy \verb{$clusters} and \verb{$edges} tables. Their
+Call \code{run$results()} to access the results. Both
+\link{Tcrdist3ClusterResults} and \link{Tcrdist3DistanceResults} provide \verb{$mapping}
+and the \verb{$distances} NumPy matrix path. Cluster results also provide
+\verb{$clusters} and \verb{$edges} tables. Their
 \verb{$annotate(idata, ...)} joins \code{tcrdist_cluster_id} and
 \code{tcrdist_cluster_size}.
 For an \code{ImmunData} run, result \code{input_id} is the original
-\code{imd_receptor_id}, so one receptor-level assignment is propagated to all
-annotation rows belonging to that receptor. Additional arguments are passed
+\code{imd_receptor_id}, so one cluster is added to every row for that receptor.
+Additional arguments are passed
 to \code{\link[immundata:annotate_receptors]{immundata::annotate_receptors()}}.
 
-Distance results also expose \verb{$annotate()} for a uniform result interface,
-but it raises an actionable error: distances alone are not receptor
-annotations, so the analysis must be rerun with \code{mode = "cluster"}.
+Distance results cannot add clusters to \code{ImmunData}. Run the analysis with
+\code{mode = "cluster"} before using \verb{$annotate()}.
 }
 
-\section{Artifacts}{
+\section{Files created}{
 
 \code{run$artifacts} contains:
-\describe{
-\item{\code{input}}{The normalized table passed to the runner. It contains
-\code{input_id} and the tcrdist3 chain columns.}
-\item{\code{config}}{The resolved runner configuration as JSON.}
-\item{\code{clusters}}{Cluster mode only. One row per original TCR with
-\code{input_id}, normalized chain columns, \code{tcrdist_cluster_id}, and
-\code{tcrdist_cluster_size}.}
-\item{\code{mapping}}{Mapping from each original \code{input_id} to the
-deduplicated receptor used for distance calculation. Several original IDs
-can map to one deduplicated receptor.}
-\item{\code{edges}}{Cluster mode only. Pairs of TCRs whose combined distance is
-at most \code{config$radius}, expanded to original input IDs.}
-\item{\code{distances}}{Combined dense pairwise distance matrix in original
-input order, in NumPy \code{.npy} format.}
-\item{\code{stdout}, \code{stderr}}{Captured Python process logs.}
+\itemize{
+\item \strong{\code{input}:} Table sent to tcrdist3.
+\item \strong{\code{config}:} Settings sent to Python, stored as JSON.
+\item \strong{\code{clusters}:} Cluster mode only. One row per original TCR, with its
+cluster number and cluster size.
+\item \strong{\code{mapping}:} Shows which identical receptors were calculated once.
+\item \strong{\code{edges}:} Cluster mode only. Receptor pairs with distance less than or
+equal to \code{config$radius}.
+\item \strong{\code{distances}:} Pairwise distance matrix in NumPy \code{.npy} format.
+\item \strong{\code{stdout}, \code{stderr}:} Python messages and errors.
 }
 }
 
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # 1. Describe the analysis.
 config <- conf_tcrdist3(cpus = 4L, radius = 24L)
 
@@ -118,7 +97,7 @@ run <- tool$run(
 results <- run$results()
 dplyr::collect(results$clusters)
 
-# The same configuration can run on ImmunData.
+# The same settings can run on ImmunData.
 snapshot <- system.file(
   "extdata", "tcrdist3", "immundata-tcr-cluster-simple",
   package = "immundapter"
@@ -133,7 +112,7 @@ idata_results <- idata_run$results()
 # 5. Join receptor-level `tcrdist_cluster_id` assignments back.
 annotated <- idata_results$annotate(idata)
 
-# Distance-only runs stop after creating the mapping and distance matrix.
+# Distance-only runs create the input links and distance matrix.
 distance_tool <- tool_tcrdist3(conf_tcrdist3(mode = "distance"))
 distance_run <- distance_tool$run(
   idata,
@@ -177,8 +156,7 @@ paired_run <- paired_tool$run(
   paired_idata,
   output_dir = file.path(tempdir(), "tcrdist3-paired")
 )
-}
-
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \link{tcrdist3}, \code{\link[=conf_tcrdist3]{conf_tcrdist3()}}, \code{\link[=tool_tcrdist3]{tool_tcrdist3()}}

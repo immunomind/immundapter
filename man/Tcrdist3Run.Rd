@@ -4,9 +4,9 @@
 \alias{Tcrdist3Run}
 \title{Completed tcrdist3 execution}
 \description{
-\code{Tcrdist3Run} is returned by \link{Tcrdist3Tool}\verb{$run()}. It contains immutable
-execution metadata. \verb{$results()} returns \link{Tcrdist3ClusterResults} or
-\link{Tcrdist3DistanceResults}, according to the run's configured mode.
+\link{Tcrdist3Tool}\verb{$run()} returns a \code{Tcrdist3Run}. It records the settings and
+where the files were saved. \verb{$results()} returns \link{Tcrdist3ClusterResults} or
+\link{Tcrdist3DistanceResults}, depending on the selected mode.
 }
 \keyword{internal}
 \section{Super class}{

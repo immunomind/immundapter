@@ -170,8 +170,8 @@ test_that("tcrdist3 tool clusters file and ImmunData inputs", {
   expect_error(
     distance_results$annotate(idata),
     paste0(
-      "cannot annotate `ImmunData` because the run produced a distance ",
-      "matrix and receptor mapping"
+      "cannot annotate `ImmunData` because the run produced distances ",
+      "but no receptor groups"
     ),
     class = "immundapter_unannotatable_results"
   )

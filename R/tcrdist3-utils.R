@@ -51,10 +51,6 @@ tcrdist3_rename_chain_columns <- function(table,
     dplyr::rename(dplyr::all_of(rename_map))
 }
 
-tcrdist3_schema_chain_loci <- function(chain) {
-  trimws(strsplit(chain, "|", fixed = TRUE)[[1L]])
-}
-
 tcrdist3_prepare_immundata <- function(input, config) {
   receptor_col <- immundata::imd_schema("receptor")
   locus_col <- immundata::imd_schema("locus")
@@ -77,7 +73,11 @@ tcrdist3_prepare_immundata <- function(input, config) {
     if (
       length(schema_chains) == 1L &&
         !tcrdist3_chain_locus(chain) %in%
-          tcrdist3_schema_chain_loci(schema_chains[[1L]])
+          trimws(strsplit(
+            schema_chains[[1L]],
+            "|",
+            fixed = TRUE
+          )[[1L]])
     ) {
       rlang::abort(sprintf(
         paste(
@@ -100,7 +100,11 @@ tcrdist3_prepare_immundata <- function(input, config) {
       schema_position <- which(vapply(
         schema_chains,
         function(schema_chain) {
-          chain_locus %in% tcrdist3_schema_chain_loci(schema_chain)
+          chain_locus %in% trimws(strsplit(
+            schema_chain,
+            "|",
+            fixed = TRUE
+          )[[1L]])
         },
         logical(1L)
       ))
@@ -149,19 +153,14 @@ tcrdist3_prepare_immundata <- function(input, config) {
     )
 }
 
-tcrdist3_read_input_file <- function(path) {
-  extension <- tolower(fs::path_ext(path))
+tcrdist3_prepare_file <- function(input, config) {
+  extension <- tolower(fs::path_ext(input))
   options <- if (extension %in% c("tsv", "txt")) {
     list(delim = "\t")
   } else {
     list()
   }
-
-  duckplyr::read_csv_duckdb(path, options = options)
-}
-
-tcrdist3_prepare_file <- function(input, config) {
-  table <- tcrdist3_read_input_file(input)
+  table <- duckplyr::read_csv_duckdb(input, options = options)
   source_columns <- unique(c(
     unname(config$cdr3_cols),
     unname(config$v_gene_cols),

@@ -26,10 +26,9 @@ conf_tcrdist3(
 tool_tcrdist3(config = conf_tcrdist3())
 }
 \arguments{
-\item{mode}{Operation performed after distance calculation. \code{"cluster"}
-creates radius-based cluster assignments and annotatable results;
-\code{"distance"} returns the distance matrix and receptor mapping without
-clustering.}
+\item{mode}{Result type. \code{"cluster"} creates receptor groups and allows the
+original \code{ImmunData} to be annotated. \code{"distance"} creates only the
+distance matrix and the table linking it to the input receptors.}
 
 \item{organism}{Host organism: \code{"human"} or \code{"mouse"}. It must match the V/J
 gene names in the input.}
@@ -38,38 +37,38 @@ gene names in the input.}
 \code{"gamma"}, and \code{"delta"}. These are passed to \code{TCRrep} and determine which
 chain distances contribute to the combined distance matrix.}
 
-\item{cdr3_cols}{Named character vector mapping every value of \code{chains} to
-its source CDR3 amino-acid column. For long-form paired \code{ImmunData}, two
-chains may map to the same source column because \code{locus} distinguishes
-them.}
+\item{cdr3_cols}{Named character vector that gives the CDR3 amino-acid column
+for every selected chain, for example \code{c(beta = "junction_aa")}.}
 
-\item{v_gene_cols}{Named character vector mapping every value of \code{chains} to
-its source V-gene column. Alleles must be recognized by the configured
-tcrdist3 germline database.}
+\item{v_gene_cols}{Named character vector that gives the V-gene column for
+every selected chain. Gene names and alleles must be recognized by the
+selected tcrdist3 germline database.}
 
-\item{j_gene_cols}{Named character vector mapping every value of \code{chains} to
-its source J-gene column.}
+\item{j_gene_cols}{Named character vector that gives the J-gene column for
+every selected chain.}
 
 \item{db_file}{Germline database passed to
 \code{tcrdist.repertoire.TCRrep}. tcrdist3 includes the default database.}
 
-\item{store_all_cdr}{Whether \code{TCRrep} retains the CDR-specific distance
-matrices in addition to its per-chain matrices.}
+\item{store_all_cdr}{Whether tcrdist3 keeps separate distance matrices for
+individual CDR regions in addition to its per-chain matrices.}
 
-\item{deduplicate}{Whether identical normalized receptors are calculated
-once. Results are expanded back to every original \code{input_id}.}
+\item{deduplicate}{Whether identical receptors are calculated once. Output
+is still reported for every original receptor.}
 
-\item{cpus}{Positive integer number of CPUs supplied to \code{TCRrep}.}
+\item{cpus}{Positive integer number of CPU cores used by tcrdist3.}
 
-\item{radius}{Non-negative integer maximum combined tcrdist for an edge in
-the clustering graph. It is used only when \code{mode = "cluster"}.}
+\item{radius}{Largest combined distance at which two receptors are directly
+connected during clustering. It must be a non-negative integer and is used
+only when \code{mode = "cluster"}.}
 
 \item{python}{Python executable name or path. \code{NULL} selects the managed
 tcrdist3 environment described above.}
 
-\item{run_args}{Additional named arguments passed to \code{TCRrep}. The values
-must be valid JSON values. Do not include arguments controlled by the
-tool, such as \code{cell_df}, \code{chains}, or \code{index_cols}.}
+\item{run_args}{Additional named arguments passed to \code{TCRrep}. This is for
+advanced tcrdist3 settings. Values must be valid JSON values. Do not
+include arguments controlled by immundapter, such as \code{cell_df}, \code{chains},
+or \code{index_cols}.}
 
 \item{config}{A \link{Tcrdist3ToolConfig} returned by \code{\link[=conf_tcrdist3]{conf_tcrdist3()}}.}
 }
@@ -80,39 +79,24 @@ tool, such as \code{cell_df}, \code{chains}, or \code{index_cols}.}
 }
 \description{
 tcrdist3 measures similarity between T-cell receptors from their CDR3
-amino-acid sequences and V/J genes. This adapter prepares R data for the
-Python \code{tcrdist3} package and calculates receptor distances. In cluster
-mode, it also turns the distance matrix into clusters and brings the cluster
-assignments back into R.
+amino-acid sequences and V/J genes. Similar receptors have smaller distance
+values. In cluster mode, receptors connected within the selected distance
+radius are placed in the same group.
 
-\code{Tcrdist3ToolConfig} is an immutable analysis recipe. It contains validated
-tcrdist3 settings but no input data or results. Create it with
-\code{\link[=conf_tcrdist3]{conf_tcrdist3()}}, then pass it to \code{\link[=tool_tcrdist3]{tool_tcrdist3()}}. A \code{ToolRun} stores a
-plain-list snapshot of the configuration used for that run and exposes its
-results through \verb{$results()}.
+\code{Tcrdist3ToolConfig} stores validated tcrdist3 settings. It contains no
+receptor data and no results. Create it with \code{\link[=conf_tcrdist3]{conf_tcrdist3()}} and pass it
+to \code{\link[=tool_tcrdist3]{tool_tcrdist3()}}. The settings cannot be changed after creation; call
+\code{\link[=conf_tcrdist3]{conf_tcrdist3()}} again when different settings are needed.
 }
-\section{The objects and how they connect}{
+\section{Basic workflow}{
 
-A typical analysis uses four objects:
-\describe{
-\item{Configuration}{\code{\link[=conf_tcrdist3]{conf_tcrdist3()}} validates analysis settings and
-returns a read-only \link{Tcrdist3ToolConfig}. The configuration says which
-chains contribute to distance, where their CDR3 and V/J columns are, and
-how tcrdist3 should run. It contains no repertoire data.}
-\item{Tool}{\code{\link[=tool_tcrdist3]{tool_tcrdist3()}} wraps a configuration in a
-\link{Tcrdist3Tool}. The tool can be reused for multiple inputs. It provides
-\verb{$help()}, \verb{$check()}, and \verb{$run()}.}
-\item{Run}{\code{tool$run(input)} executes one analysis and returns a
-\code{ToolRun}. The run records the configuration, input summary, run
-directory, and paths to every generated artifact. Call \code{run$results()} to
-parse that specific execution.}
-\item{Results}{\code{run$results()} returns either
-\link{Tcrdist3ClusterResults} or \link{Tcrdist3DistanceResults}. Both provide a lazy
-duckplyr \verb{$mapping} and a \verb{$distances} artifact path. Cluster results also
-provide \verb{$clusters} and \verb{$edges}; their \verb{$annotate(idata)} joins clusters
-back by \code{imd_receptor_id} as \code{tcrdist_cluster_id} and
-\code{tcrdist_cluster_size}. Distance results cannot annotate and explain how
-to rerun in cluster mode.}
+A tcrdist3 analysis has four steps:
+\enumerate{
+\item Use \code{\link[=conf_tcrdist3]{conf_tcrdist3()}} to select the organism, receptor chains, input
+columns, and analysis mode.
+\item Use \code{\link[=tool_tcrdist3]{tool_tcrdist3()}} to create the tool.
+\item Use \code{run <- tool$run(input)} to analyze the data.
+\item Use \code{results <- run$results()} to read distances and clusters.
 }
 
 In short:
@@ -125,81 +109,98 @@ In short:
 
 \section{Choosing single- or paired-chain distance}{
 
-\code{chains} is passed to \code{tcrdist.repertoire.TCRrep}. It controls the distance
-calculation, not the shape of the stored data:
-\describe{
-\item{\code{chains = "beta"}}{Calculate distance from the beta chain only. This
-can also be used with paired TRA/TRB \code{ImmunData}; the beta side is selected
-from each paired receptor.}
-\item{\code{chains = c("alpha", "beta")}}{Calculate alpha and beta distance
-matrices and add them before clustering. The input must provide both
-chains.}
+\code{chains} controls which receptor chains contribute to the distance:
+\itemize{
+\item \strong{\code{chains = "beta"}:} Use only the beta chain. This also works with paired
+TRA/TRB \code{ImmunData}; the beta chain is selected from each receptor.
+\item \strong{\code{chains = c("alpha", "beta")}:} Calculate alpha and beta distances and
+add them. The input must contain both chains.
 }
 
-\code{ImmunData$schema_receptor} describes the chains available in the data.
-\code{config$chains} describes the chains used by this particular analysis. When
-the schema declares its chains, the adapter checks that the requested chains
-are compatible with them.
+The tool checks that the selected chains are present in \code{ImmunData}.
 }
 
-\section{Input}{
+\section{Input to \code{tool$run()}}{
 
-The recommended input is an \link[immundata:ImmunData]{immundata::ImmunData} object. The adapter reads
-\code{input$receptors}, which has one row per distinct \code{imd_receptor_id}.
-Single-chain receptors use unsuffixed schema feature columns. Paired
-receptors use the schema loci to associate the \code{.x} and \code{.y} columns with
-alpha, beta, gamma, or delta. The source column names in \code{cdr3_cols},
-\code{v_gene_cols}, and \code{j_gene_cols} refer to the unsuffixed schema feature
-names. For example, paired TRA/TRB \code{ImmunData} commonly uses:
+\code{tool$run()} accepts either an \link[immundata:ImmunData]{immundata::ImmunData} dataset or one text
+file. In both cases, each receptor must provide a CDR3 amino-acid sequence,
+a V gene, and a J gene for every chain selected in \code{chains}.
+
+For \code{ImmunData}, the tool prepares one row per distinct
+receptor. \code{cdr3_cols}, \code{v_gene_cols}, and \code{j_gene_cols} give the names of the
+receptor features. For paired TRA/TRB data, both chains can use the same
+column names because \code{ImmunData} already records which chain is TRA or TRB:
 
 \if{html}{\out{<div class="sourceCode">}}\preformatted{cdr3_cols  = c(alpha = "junction_aa", beta = "junction_aa")
 v_gene_cols = c(alpha = "v_call", beta = "v_call")
 j_gene_cols = c(alpha = "j_call", beta = "j_call")
 }\if{html}{\out{</div>}}
 
-Text files are also supported. CSV files are comma-separated; \code{.tsv} and
-\code{.txt} files are tab-separated. Each row is one original TCR. Paired-chain
-files must be wide, with separate source columns for every chain. The
-adapter uses \code{imd_receptor_id}, then \code{cell_id}, as \code{input_id}; if neither is
-present, it assigns row numbers.
+A text input may be CSV, TSV, or tab-delimited TXT. Each row must represent
+one receptor. A paired-chain file must have one row per paired receptor and
+separate CDR3, V-gene, and J-gene columns for each chain. If the
+file contains an \code{imd_receptor_id} column, that column is used as the
+receptor ID. Otherwise, \code{cell_id} is used. If neither column is present,
+row numbers are used.
 }
 
 \section{What happens during a run}{
 
-The adapter performs these steps:
+The tool performs these steps:
 \enumerate{
-\item Normalize the selected chains to the column names required by
-tcrdist3, such as \code{cdr3_b_aa}, \code{v_b_gene}, and \code{j_b_gene}.
-\item If \code{deduplicate = TRUE}, calculate each identical normalized receptor
-only once while retaining an original-to-deduplicated mapping.
-\item Run \code{tcrdist.repertoire.TCRrep} in the configured Python environment.
-The adapter has already resolved deduplication, so the runner calls
-\code{TCRrep} with its own deduplication disabled.
-\item Calculate one pairwise distance matrix per selected chain and add
-the matrices for a multi-chain analysis.
-\item Expand distances back to the original input order.
-\item In cluster mode, connect receptor pairs whose combined distance is
-at most \code{radius}; each connected component becomes a cluster, and expand
-cluster assignments and edges back to the original input order.
+\item Rename the selected columns to the names required by tcrdist3.
+\item If \code{deduplicate = TRUE}, calculate identical receptors once.
+\item Calculate a distance matrix for each selected chain. For multi-chain
+analysis, add the matrices.
+\item Return distances in the same order as the original receptors.
+\item In cluster mode, connect receptor pairs with distance less than or equal
+to \code{radius}. Each connected group becomes one cluster.
 }
 
-In cluster mode, clustering is transitive: two receptors in one connected
-component can have a direct distance greater than \code{radius} when other
-receptors connect them.
+A group can be connected through intermediate receptors. Therefore, two
+receptors in the same group can have a direct distance greater than
+\code{radius} when other receptors form a path between them.
+}
+
+\section{Output from \code{tool$run()}}{
+
+\code{tool$run()} returns a \link{Tcrdist3Run}. It records where the results were
+saved. To read them, run \code{results <- run$results()}.
+
+Both analysis modes provide:
+\itemize{
+\item \strong{\code{results$mapping}:} Shows which original receptors were identical and
+therefore calculated once. Use \code{dplyr::collect()} to read the table into R.
+\item \strong{\code{results$distances}:} Path to the pairwise distance matrix. The file is
+in Python NumPy \code{.npy} format; it is not an R table.
+}
+
+Cluster mode also provides:
+\itemize{
+\item \strong{\code{results$clusters}:} One row per original receptor, with its cluster
+number and cluster size.
+\item \strong{\code{results$edges}:} Receptor pairs with distance less than or equal to
+\code{radius}.
+\item \strong{\code{results$annotate(idata)}:} A new \code{ImmunData} dataset with
+\code{tcrdist_cluster_id} and \code{tcrdist_cluster_size} receptor columns.
+}
+
+Distance mode does not create clusters and cannot annotate \code{ImmunData}.
 }
 
 \section{Managed Python environment}{
 
-When \code{python = NULL}, the tool uses an isolated uv environment under
+When \code{python = NULL}, the tool uses its own Python environment under
 \verb{~/immundapter_data/environments/tcrdist3}. On Windows, it uses the
 corresponding \code{Scripts/python.exe} path. Set \code{IMMUNDAPTER_DATA} before
-creating the configuration to use another root directory. \code{tool$help()}
-prints the uv commands that create the environment and install the supported
-tcrdist3 version.
+creating the settings to use another root directory. \code{tool$help()}
+prints the commands that create this environment and install the supported
+tcrdist3 version. These commands are instructions; \verb{$help()} does not run
+them.
 }
 
 \examples{
-\dontrun{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 # 1. Describe the analysis.
 config <- conf_tcrdist3(cpus = 4L, radius = 24L)
 
@@ -224,7 +225,7 @@ run <- tool$run(
 results <- run$results()
 dplyr::collect(results$clusters)
 
-# The same configuration can run on ImmunData.
+# The same settings can run on ImmunData.
 snapshot <- system.file(
   "extdata", "tcrdist3", "immundata-tcr-cluster-simple",
   package = "immundapter"
@@ -239,7 +240,7 @@ idata_results <- idata_run$results()
 # 5. Join receptor-level `tcrdist_cluster_id` assignments back.
 annotated <- idata_results$annotate(idata)
 
-# Distance-only runs stop after creating the mapping and distance matrix.
+# Distance-only runs create the input links and distance matrix.
 distance_tool <- tool_tcrdist3(conf_tcrdist3(mode = "distance"))
 distance_run <- distance_tool$run(
   idata,
@@ -283,13 +284,12 @@ paired_run <- paired_tool$run(
   paired_idata,
   output_dir = file.path(tempdir(), "tcrdist3-paired")
 )
-}
-
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 \link{Tcrdist3Tool}, \link[immundata:ImmunData]{immundata::ImmunData},
-\url{https://tcrdist3.readthedocs.io/en/latest/inputs.html},
-\url{https://tcrdist3.readthedocs.io/en/latest/}
+\href{https://tcrdist3.readthedocs.io/en/latest/inputs.html}{tcrdist3 input},
+\href{https://tcrdist3.readthedocs.io/en/latest/}{tcrdist3 documentation}
 }
 \section{Super class}{
 \code{\link[immundapter:AbstractConfig]{AbstractConfig}} -> \code{Tcrdist3ToolConfig}
@@ -299,29 +299,29 @@ paired_run <- paired_tool$run(
   \describe{
     \item{\code{mode}}{Whether the run produces clusters or distances only.}
 
-    \item{\code{organism}}{Validated organism supplied to \code{TCRrep}.}
+    \item{\code{organism}}{Organism used for V-gene and J-gene interpretation.}
 
-    \item{\code{chains}}{Validated TCR chains.}
+    \item{\code{chains}}{TCR chains included in the distance.}
 
-    \item{\code{cdr3_cols}}{Named chain-to-CDR3-column mapping.}
+    \item{\code{cdr3_cols}}{CDR3 amino-acid column for each selected chain.}
 
-    \item{\code{v_gene_cols}}{Named chain-to-V-gene-column mapping.}
+    \item{\code{v_gene_cols}}{V-gene column for each selected chain.}
 
-    \item{\code{j_gene_cols}}{Named chain-to-J-gene-column mapping.}
+    \item{\code{j_gene_cols}}{J-gene column for each selected chain.}
 
     \item{\code{db_file}}{tcrdist3 germline database.}
 
-    \item{\code{store_all_cdr}}{Logical CDR-matrix retention setting.}
+    \item{\code{store_all_cdr}}{Whether to keep separate CDR distance matrices.}
 
-    \item{\code{deduplicate}}{Logical receptor deduplication setting.}
+    \item{\code{deduplicate}}{Whether to calculate identical receptors once.}
 
     \item{\code{cpus}}{Number of CPUs used by tcrdist3.}
 
     \item{\code{radius}}{Clustering edge radius.}
 
-    \item{\code{python}}{Resolved Python executable.}
+    \item{\code{python}}{Python program used to run tcrdist3.}
 
-    \item{\code{run_args}}{Additional \code{TCRrep} constructor arguments.}
+    \item{\code{run_args}}{Additional advanced settings passed to \code{TCRrep}.}
   }
   \if{html}{\out{</div>}}
 }
@@ -340,7 +340,7 @@ paired_run <- paired_tool$run(
 \if{html}{\out{<a id="method-Tcrdist3ToolConfig-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-Tcrdist3ToolConfig-initialize}{}}}
 \subsection{\code{Tcrdist3ToolConfig$new()}}{
-  Create a validated tcrdist3 configuration. Users should call
+  Create checked tcrdist3 settings. Users should call
 \code{\link[=conf_tcrdist3]{conf_tcrdist3()}} instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
@@ -350,7 +350,7 @@ paired_run <- paired_tool$run(
   \subsection{Arguments}{
     \if{html}{\out{<div class="arguments">}}
     \describe{
-      \item{\code{values}}{Named list of configuration values.}
+      \item{\code{values}}{Named list of tcrdist3 settings.}
     }
     \if{html}{\out{</div>}}
   }

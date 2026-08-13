@@ -1,11 +1,14 @@
 #' Parsed tcrdist3 results
 #'
-#' `Tcrdist3Results` contains outputs shared by every tcrdist3 mode: a lazy
-#' duckplyr receptor mapping and the path to the NumPy distance matrix.
+#' `Tcrdist3Results` contains output shared by both analysis modes. `$mapping`
+#' shows which identical receptors were calculated once. Use
+#' `dplyr::collect()` to read this table into R. `$distances` gives the path to
+#' the distance matrix.
 #'
-#' @field mapping Read-only lazy duckplyr table that maps each original input
-#'   receptor to the receptor used for distance calculation.
-#' @field distances Read-only path to the NumPy `.npy` distance matrix.
+#' @field mapping Read-only table showing which original receptors were
+#'   identical and calculated once.
+#' @field distances Read-only file path to the pairwise distance matrix in
+#'   Python NumPy `.npy` format. This field is a path, not an R matrix.
 #'
 #' @keywords internal
 Tcrdist3Results <- R6::R6Class(
@@ -35,9 +38,8 @@ Tcrdist3Results <- R6::R6Class(
 
 #' Parsed tcrdist3 distance-only results
 #'
-#' Distance-only results contain a receptor mapping and distance matrix but no
-#' receptor-level annotations. `$annotate()` explains how to produce
-#' annotatable cluster results.
+#' Distance-only results contain a distance matrix but no receptor groups. Run
+#' tcrdist3 again with `mode = "cluster"` before adding groups to `ImmunData`.
 #'
 #' @keywords internal
 Tcrdist3DistanceResults <- R6::R6Class(
@@ -49,8 +51,7 @@ Tcrdist3DistanceResults <- R6::R6Class(
       rlang::abort(
         paste(
           "These tcrdist3 distance results cannot annotate `ImmunData`",
-          "because the run produced a distance matrix and receptor mapping,",
-          "but no receptor-level annotations.",
+          "because the run produced distances but no receptor groups.",
           "Rerun tcrdist3 with `mode = \"cluster\"`, choose an appropriate",
           "`radius`, and call `$annotate()` on those cluster results."
         ),
@@ -63,15 +64,19 @@ Tcrdist3DistanceResults <- R6::R6Class(
 
 #' Parsed tcrdist3 cluster results
 #'
-#' Cluster results add lazy duckplyr cluster and edge tables to the common
-#' tcrdist3 outputs. `$annotate(idata)` joins receptor-level cluster
-#' assignments to an `ImmunData` object as `tcrdist_cluster_id` and
-#' `tcrdist_cluster_size`.
+#' Cluster results add two tables to the common tcrdist3 output.
+#' `$clusters` contains the group assignment for each receptor. `$edges`
+#' contains pairs of receptors directly connected at the selected distance
+#' radius. Use `dplyr::collect()` to bring either table into R memory.
 #'
-#' @field clusters Read-only lazy duckplyr table of receptor cluster
-#'   assignments and cluster sizes.
-#' @field edges Read-only lazy duckplyr table of receptor pairs connected at
-#'   the configured distance radius.
+#' `$annotate(idata)` returns a new `ImmunData` dataset with
+#' `tcrdist_cluster_id` and `tcrdist_cluster_size` added to receptor
+#' columns.
+#'
+#' @field clusters Read-only table with one cluster number and cluster size per
+#'   receptor.
+#' @field edges Read-only table of receptor pairs whose distance is within the
+#'   selected radius.
 #'
 #' @keywords internal
 Tcrdist3ClusterResults <- R6::R6Class(

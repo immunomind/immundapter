@@ -1,8 +1,8 @@
 #' Completed tcrdist3 execution
 #'
-#' `Tcrdist3Run` is returned by [Tcrdist3Tool]`$run()`. It contains immutable
-#' execution metadata. `$results()` returns [Tcrdist3ClusterResults] or
-#' [Tcrdist3DistanceResults], according to the run's configured mode.
+#' [Tcrdist3Tool]`$run()` returns a `Tcrdist3Run`. It records the settings and
+#' where the files were saved. `$results()` returns [Tcrdist3ClusterResults] or
+#' [Tcrdist3DistanceResults], depending on the selected mode.
 #'
 #' @keywords internal
 Tcrdist3Run <- R6::R6Class(

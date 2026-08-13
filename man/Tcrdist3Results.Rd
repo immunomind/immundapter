@@ -4,8 +4,10 @@
 \alias{Tcrdist3Results}
 \title{Parsed tcrdist3 results}
 \description{
-\code{Tcrdist3Results} contains outputs shared by every tcrdist3 mode: a lazy
-duckplyr receptor mapping and the path to the NumPy distance matrix.
+\code{Tcrdist3Results} contains output shared by both analysis modes. \verb{$mapping}
+shows which identical receptors were calculated once. Use
+\code{dplyr::collect()} to read this table into R. \verb{$distances} gives the path to
+the distance matrix.
 }
 \keyword{internal}
 \section{Super class}{
@@ -14,10 +16,11 @@ duckplyr receptor mapping and the path to the NumPy distance matrix.
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{mapping}}{Read-only lazy duckplyr table that maps each original input
-receptor to the receptor used for distance calculation.}
+    \item{\code{mapping}}{Read-only table showing which original receptors were
+identical and calculated once.}
 
-    \item{\code{distances}}{Read-only path to the NumPy \code{.npy} distance matrix.}
+    \item{\code{distances}}{Read-only file path to the pairwise distance matrix in
+Python NumPy \code{.npy} format. This field is a path, not an R matrix.}
   }
   \if{html}{\out{</div>}}
 }

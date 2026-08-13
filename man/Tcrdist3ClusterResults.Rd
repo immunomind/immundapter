@@ -4,10 +4,15 @@
 \alias{Tcrdist3ClusterResults}
 \title{Parsed tcrdist3 cluster results}
 \description{
-Cluster results add lazy duckplyr cluster and edge tables to the common
-tcrdist3 outputs. \verb{$annotate(idata)} joins receptor-level cluster
-assignments to an \code{ImmunData} object as \code{tcrdist_cluster_id} and
-\code{tcrdist_cluster_size}.
+Cluster results add two tables to the common tcrdist3 output.
+\verb{$clusters} contains the group assignment for each receptor. \verb{$edges}
+contains pairs of receptors directly connected at the selected distance
+radius. Use \code{dplyr::collect()} to bring either table into R memory.
+}
+\details{
+\verb{$annotate(idata)} returns a new \code{ImmunData} dataset with
+\code{tcrdist_cluster_id} and \code{tcrdist_cluster_size} added to receptor
+columns.
 }
 \keyword{internal}
 \section{Super classes}{
@@ -16,11 +21,11 @@ assignments to an \code{ImmunData} object as \code{tcrdist_cluster_id} and
 \section{Active bindings}{
   \if{html}{\out{<div class="r6-active-bindings">}}
   \describe{
-    \item{\code{clusters}}{Read-only lazy duckplyr table of receptor cluster
-assignments and cluster sizes.}
+    \item{\code{clusters}}{Read-only table with one cluster number and cluster size per
+receptor.}
 
-    \item{\code{edges}}{Read-only lazy duckplyr table of receptor pairs connected at
-the configured distance radius.}
+    \item{\code{edges}}{Read-only table of receptor pairs whose distance is within the
+selected radius.}
   }
   \if{html}{\out{</div>}}
 }

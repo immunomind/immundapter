@@ -4,9 +4,8 @@
 \alias{Tcrdist3DistanceResults}
 \title{Parsed tcrdist3 distance-only results}
 \description{
-Distance-only results contain a receptor mapping and distance matrix but no
-receptor-level annotations. \verb{$annotate()} explains how to produce
-annotatable cluster results.
+Distance-only results contain a distance matrix but no receptor groups. Run
+tcrdist3 again with \code{mode = "cluster"} before adding groups to \code{ImmunData}.
 }
 \keyword{internal}
 \section{Super classes}{
