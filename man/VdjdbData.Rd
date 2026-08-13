@@ -2,9 +2,9 @@
 % Please edit documentation in R/vdjdb.R
 \name{VdjdbData}
 \alias{VdjdbData}
-\title{VDJdb data-source adapter}
+\title{VDJdb data source}
 \description{
-VDJdb data-source adapter
+VDJdb data source
 }
 \keyword{internal}
 \section{Super class}{
@@ -29,7 +29,7 @@ VDJdb data-source adapter
 \if{html}{\out{<a id="method-VdjdbData-initialize"></a>}}
 \if{latex}{\out{\hypertarget{method-VdjdbData-initialize}{}}}
 \subsection{\code{VdjdbData$new()}}{
-  Create a VDJdb data-source adapter. Users should call \code{\link[=data_vdjdb]{data_vdjdb()}}
+  Create a VDJdb data source. Users should call \code{\link[=data_vdjdb]{data_vdjdb()}}
 instead.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}

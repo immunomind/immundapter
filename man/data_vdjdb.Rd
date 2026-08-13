@@ -12,23 +12,53 @@ directory under \code{IMMUNDAPTER_DATA}, or \verb{~/immundapter_data/data} when 
 environment variable is not set.}
 }
 \value{
-A VDJdb data-source adapter.
+A VDJdb data source.
 }
 \description{
-\code{data_vdjdb()} provides access to the slim VDJdb table for single-chain TCR
-annotation.
+VDJdb is a reference database of T-cell receptors with known antigen
+specificities. \code{data_vdjdb()} manages a local copy of the slim VDJdb table
+and can add matching VDJdb records to \link[immundata:ImmunData]{immundata::ImmunData}.
 }
-\details{
-Use \verb{$download()} to print download instructions, or
-\verb{$download(execute = TRUE)} to download the latest VDJdb release. \verb{$check()}
-reports whether the data are available and where they are stored. \verb{$load()}
-returns the table as a duckplyr data frame.
+\section{Input and output}{
 
-\verb{$annotate()} joins VDJdb to an \link[immundata:ImmunData]{immundata::ImmunData} object by CDR3 amino
-acid sequence and locus by default:
-\code{c(junction_aa = "cdr3", locus = "gene")}. Non-key VDJdb columns are prefixed
-with \code{vdjdb_}.
+\code{data <- data_vdjdb()} gives access to these commands:
+\itemize{
+\item \strong{\code{data$download()}:} Print the download command and destination without
+downloading anything.
+\item \strong{\code{data$download(execute = TRUE)}:} Download the latest VDJdb release.
+Use \code{force = TRUE} to replace an existing copy.
+\item \strong{\code{data$check()}:} Report whether VDJdb has been downloaded.
+\item \strong{\code{data$load()}:} Return the VDJdb table. The table stays on disk until
+you use \code{dplyr::collect()}. Use \code{data$load(output = "df")} to return a base
+R data frame instead.
+\item \strong{\code{data$annotate(idata)}:} Match receptors in an \code{ImmunData} dataset to
+VDJdb and return a new dataset with VDJdb columns. By default, matching
+uses CDR3 amino-acid sequence and receptor locus.
+\item \strong{\code{data$citation()}:} Return the VDJdb publication as an R citation.
+}
+
+For the default matching, \code{ImmunData} must contain \code{junction_aa} and
+\code{locus}. These are matched to the VDJdb columns \code{cdr3} and \code{gene}:
+\code{c(junction_aa = "cdr3", locus = "gene")}. Use the \code{by} argument to choose
+different matching columns. Added VDJdb columns start with \code{vdjdb_}, which
+makes them easy to distinguish from the original columns.
+}
+
+\examples{
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+data <- data_vdjdb()
+
+# First call: print instructions. Second call: perform the download.
+data$download()
+data$download(execute = TRUE)
+data$check()
+
+vdjdb_table <- data$load()
+dplyr::collect(vdjdb_table)
+
+annotated_idata <- data$annotate(idata)
+\dontshow{\}) # examplesIf}
 }
 \seealso{
-\url{https://github.com/antigenomics/vdjdb-db}
+\href{https://github.com/antigenomics/vdjdb-db}{VDJdb database}
 }

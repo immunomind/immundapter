@@ -1,32 +1,57 @@
 #' VDJdb data source
 #'
-#' `data_vdjdb()` provides access to the slim VDJdb table for single-chain TCR
-#' annotation.
+#' VDJdb is a reference database of T-cell receptors with known antigen
+#' specificities. `data_vdjdb()` manages a local copy of the slim VDJdb table
+#' and can add matching VDJdb records to [immundata::ImmunData].
 #'
-#' Use `$download()` to print download instructions, or
-#' `$download(execute = TRUE)` to download the latest VDJdb release. `$check()`
-#' reports whether the data are available and where they are stored. `$load()`
-#' returns the table as a duckplyr data frame.
+#' @section Input and output:
+#' `data <- data_vdjdb()` gives access to these commands:
 #'
-#' `$annotate()` joins VDJdb to an [immundata::ImmunData] object by CDR3 amino
-#' acid sequence and locus by default:
-#' `c(junction_aa = "cdr3", locus = "gene")`. Non-key VDJdb columns are prefixed
-#' with `vdjdb_`.
+#' - **`data$download()`:** Print the download command and destination without
+#'   downloading anything.
+#' - **`data$download(execute = TRUE)`:** Download the latest VDJdb release.
+#'   Use `force = TRUE` to replace an existing copy.
+#' - **`data$check()`:** Report whether VDJdb has been downloaded.
+#' - **`data$load()`:** Return the VDJdb table. The table stays on disk until
+#'   you use `dplyr::collect()`. Use `data$load(output = "df")` to return a base
+#'   R data frame instead.
+#' - **`data$annotate(idata)`:** Match receptors in an `ImmunData` dataset to
+#'   VDJdb and return a new dataset with VDJdb columns. By default, matching
+#'   uses CDR3 amino-acid sequence and receptor locus.
+#' - **`data$citation()`:** Return the VDJdb publication as an R citation.
+#'
+#' For the default matching, `ImmunData` must contain `junction_aa` and
+#' `locus`. These are matched to the VDJdb columns `cdr3` and `gene`:
+#' `c(junction_aa = "cdr3", locus = "gene")`. Use the `by` argument to choose
+#' different matching columns. Added VDJdb columns start with `vdjdb_`, which
+#' makes them easy to distinguish from the original columns.
 #'
 #' @param output_dir Directory used to store VDJdb. Defaults to the `data`
 #'   directory under `IMMUNDAPTER_DATA`, or `~/immundapter_data/data` when the
 #'   environment variable is not set.
 #'
-#' @return A VDJdb data-source adapter.
+#' @return A VDJdb data source.
 #'
-#' @seealso \url{https://github.com/antigenomics/vdjdb-db}
+#' @examplesIf interactive()
+#' data <- data_vdjdb()
+#'
+#' # First call: print instructions. Second call: perform the download.
+#' data$download()
+#' data$download(execute = TRUE)
+#' data$check()
+#'
+#' vdjdb_table <- data$load()
+#' dplyr::collect(vdjdb_table)
+#'
+#' annotated_idata <- data$annotate(idata)
+#' @seealso [VDJdb database](https://github.com/antigenomics/vdjdb-db)
 #' @export
 data_vdjdb <- function(output_dir = immundapter_data_path("data")) {
   VdjdbData$new(output_dir)
 }
 
 
-#' VDJdb data-source adapter
+#' VDJdb data source
 #'
 #' @keywords internal
 VdjdbData <- R6::R6Class(
@@ -35,7 +60,7 @@ VdjdbData <- R6::R6Class(
   cloneable = FALSE,
   public = list(
     #' @description
-    #' Create a VDJdb data-source adapter. Users should call [data_vdjdb()]
+    #' Create a VDJdb data source. Users should call [data_vdjdb()]
     #' instead.
     #' @param output_dir Directory used to store the VDJdb data file.
     initialize = function(output_dir = immundapter_data_path("data")) {
