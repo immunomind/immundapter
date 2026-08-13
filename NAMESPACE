@@ -10,31 +10,43 @@ export(tool_immgliph)
 export(tool_raxml_ng)
 export(tool_tcrdist3)
 importFrom(R6,R6Class)
-importFrom(checkmate,assert_choice)
-importFrom(checkmate,assert_class)
-importFrom(checkmate,assert_data_frame)
-importFrom(checkmate,assert_file_exists)
-importFrom(checkmate,assert_int)
-importFrom(checkmate,assert_list)
-importFrom(checkmate,assert_r6)
-importFrom(checkmate,assert_string)
+importFrom(checkmate,
+  assert_choice,
+  assert_class,
+  assert_data_frame,
+  assert_file_exists,
+  assert_int,
+  assert_list,
+  assert_r6,
+  assert_string
+)
 importFrom(cli,cli_inform)
-importFrom(dplyr,all_of)
-importFrom(dplyr,collect)
-importFrom(dplyr,distinct)
-importFrom(dplyr,filter)
-importFrom(dplyr,inner_join)
-importFrom(dplyr,rename)
-importFrom(dplyr,select)
-importFrom(duckplyr,as_duckdb_tibble)
-importFrom(duckplyr,compute_parquet)
-importFrom(duckplyr,read_parquet_duckdb)
-importFrom(fs,dir_create)
-importFrom(fs,path)
-importFrom(fs,path_abs)
-importFrom(immundata,annotate_receptors)
-importFrom(immundata,imd_schema)
+importFrom(dplyr,
+  all_of,
+  collect,
+  distinct,
+  filter,
+  inner_join,
+  rename,
+  select
+)
+importFrom(duckplyr,
+  as_duckdb_tibble,
+  compute_parquet,
+  read_parquet_duckdb
+)
+importFrom(fs,
+  dir_create,
+  path,
+  path_abs
+)
+importFrom(immundata,
+  annotate_receptors,
+  imd_schema
+)
 importFrom(jsonlite,write_json)
-importFrom(rlang,abort)
-importFrom(rlang,sym)
+importFrom(rlang,
+  abort,
+  sym
+)
 importFrom(withr,with_seed)
