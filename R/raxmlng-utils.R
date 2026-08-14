@@ -1,3 +1,168 @@
+raxml_ng_executable <- function() {
+  Sys.which("raxml-ng")
+}
+
+
+raxml_ng_execute <- function(executable, args, stdout, stderr) {
+  suppressWarnings(system2(
+    executable,
+    args,
+    stdout = stdout,
+    stderr = stderr
+  ))
+}
+
+
+raxml_ng_command_args <- function(config,
+                                  alignment_path,
+                                  prefix,
+                                  model_path = NULL) {
+  checkmate::assert_r6(config, classes = "RaxmlNgToolConfig")
+  checkmate::assert_string(alignment_path, min.chars = 1L)
+  checkmate::assert_string(prefix, min.chars = 1L)
+  checkmate::assert_string(model_path, min.chars = 1L, null.ok = TRUE)
+
+  partitioned <- !is.null(config$partition_col)
+  if (partitioned && is.null(model_path)) {
+    rlang::abort("`model_path` is required for partitioned RAxML-NG input.")
+  }
+  if (!partitioned && !is.null(model_path)) {
+    rlang::abort("`model_path` requires a configured `partition_col`.")
+  }
+
+  args <- c(
+    paste0("--", config$analysis),
+    "--msa", shQuote(alignment_path),
+    "--model", shQuote(if (partitioned) model_path else config$model),
+    "--prefix", shQuote(prefix)
+  )
+  if (!is.null(config$seed)) {
+    args <- c(args, "--seed", as.character(config$seed))
+  }
+  if (!is.null(config$threads)) {
+    args <- c(args, "--threads", as.character(config$threads))
+  }
+  if (partitioned && !is.null(config$brlen)) {
+    args <- c(args, "--brlen", config$brlen)
+  }
+  args
+}
+
+
+raxml_ng_format_command <- function(executable, args) {
+  paste(c(shQuote(executable), args), collapse = " ")
+}
+
+
+raxml_ng_parse_partitions <- function(specification, alignment_length) {
+  checkmate::assert_string(specification, min.chars = 1L)
+  checkmate::assert_count(alignment_length, positive = TRUE)
+
+  if (grepl("(^|;)\\s*(;|$)", specification)) {
+    rlang::abort("Partition specifications cannot contain empty entries.")
+  }
+  entries <- trimws(strsplit(specification, ";", fixed = TRUE)[[1L]])
+  if (length(entries) == 0L || any(!nzchar(entries))) {
+    rlang::abort("Partition specifications cannot contain empty entries.")
+  }
+
+  parsed <- lapply(entries, function(entry) {
+    match <- regexec(
+      "^([^=]+?)\\s*=\\s*([0-9]+)\\s*-\\s*([0-9]+)$",
+      entry,
+      perl = TRUE
+    )
+    fields <- regmatches(entry, match)[[1L]]
+    if (length(fields) == 0L) {
+      rlang::abort(sprintf(
+        "Invalid partition entry `%s`; expected `name=start-end`.",
+        entry
+      ))
+    }
+
+    data.frame(
+      name = trimws(fields[[2L]]),
+      start = as.numeric(fields[[3L]]),
+      end = as.numeric(fields[[4L]]),
+      stringsAsFactors = FALSE
+    )
+  })
+  partitions <- do.call(rbind, parsed)
+
+  if (any(!nzchar(partitions$name)) ||
+      any(grepl("[=;,\r\n]", partitions$name))) {
+    rlang::abort("Partition names must be non-empty and cannot contain `=`, `;`, or `,`.")
+  }
+  if (anyDuplicated(partitions$name)) {
+    duplicated_names <- unique(partitions$name[duplicated(partitions$name)])
+    rlang::abort(sprintf(
+      "Partition names must be unique; duplicated: %s.",
+      paste(duplicated_names, collapse = ", ")
+    ))
+  }
+  if (any(!is.finite(partitions$start)) ||
+      any(!is.finite(partitions$end)) ||
+      any(partitions$start < 1) ||
+      any(partitions$end < 1)) {
+    rlang::abort("Partition coordinates must be positive one-based integers.")
+  }
+  if (any(partitions$start > partitions$end)) {
+    rlang::abort("Every partition must have `start <= end`.")
+  }
+  if (any(partitions$end > alignment_length)) {
+    rlang::abort(sprintf(
+      "Partition coordinates exceed the family alignment length (%d).",
+      alignment_length
+    ))
+  }
+
+  partitions <- partitions[order(partitions$start, partitions$end), , drop = FALSE]
+  rownames(partitions) <- NULL
+  if (nrow(partitions) > 1L &&
+      any(partitions$start[-1L] <= partitions$end[-nrow(partitions)])) {
+    rlang::abort("Partition coordinates cannot overlap.")
+  }
+  complete <- partitions$start[[1L]] == 1 &&
+    partitions$end[[nrow(partitions)]] == alignment_length &&
+    (nrow(partitions) == 1L || all(
+      partitions$start[-1L] == partitions$end[-nrow(partitions)] + 1
+    ))
+  if (!complete) {
+    rlang::abort(sprintf(
+      "Partitions must cover every alignment position from 1 to %d.",
+      alignment_length
+    ))
+  }
+
+  partitions
+}
+
+
+raxml_ng_write_model_file <- function(partitions, model, path) {
+  checkmate::assert_data_frame(
+    partitions,
+    min.rows = 1L,
+    col.names = "named"
+  )
+  checkmate::assert_names(
+    names(partitions),
+    must.include = c("name", "start", "end")
+  )
+  checkmate::assert_string(model, min.chars = 1L)
+  checkmate::assert_string(path, min.chars = 1L)
+
+  lines <- sprintf(
+    "%s, %s = %.0f-%.0f",
+    model,
+    partitions$name,
+    partitions$start,
+    partitions$end
+  )
+  writeLines(lines, path, useBytes = TRUE)
+  invisible(path)
+}
+
+
 raxml_ng_prepare_immundata <- function(input, config) {
   locus_col <- immundata::imd_schema("locus")
   schema_chains <- immundata::imd_receptor_chains(input$schema_receptor)
@@ -52,6 +217,9 @@ raxml_ng_prepare_immundata <- function(input, config) {
     tip_id = config$tip_col,
     aligned_sequence = config$alignment_col
   )
+  if (!is.null(config$partition_col)) {
+    source <- c(source, partition_spec = config$partition_col)
+  }
   missing_columns <- setdiff(unname(source), colnames(annotations))
   if (length(missing_columns) > 0L) {
     rlang::abort(sprintf(
@@ -75,7 +243,12 @@ raxml_ng_collect_input <- function(input, config) {
     rlang::abort("No receptors are available for the configured RAxML-NG locus.")
   }
 
-  for (column in c("family_id", "tip_id", "aligned_sequence")) {
+  for (column in c(
+    "family_id",
+    "tip_id",
+    "aligned_sequence",
+    if (!is.null(config$partition_col)) "partition_spec"
+  )) {
     values <- as.character(prepared[[column]])
     invalid <- is.na(prepared[[column]]) | !nzchar(trimws(values))
     if (any(invalid)) {
@@ -97,6 +270,41 @@ raxml_ng_collect_input <- function(input, config) {
     rlang::abort(
       "RAxML-NG aligned sequences cannot contain whitespace characters."
     )
+  }
+  prepared$aligned_sequence <- toupper(prepared$aligned_sequence)
+  invalid_sequence <- grepl(
+    "[^ACGTURYSWKMBDHVNXO?.-]",
+    prepared$aligned_sequence
+  )
+  if (any(invalid_sequence)) {
+    invalid_chars <- unique(strsplit(
+      gsub(
+        "[ACGTURYSWKMBDHVNXO?.-]",
+        "",
+        paste(prepared$aligned_sequence[invalid_sequence], collapse = "")
+      ),
+      ""
+    )[[1L]])
+    rlang::abort(sprintf(
+      "RAxML-NG aligned sequences contain unsupported character(s): %s.",
+      paste(invalid_chars, collapse = ", ")
+    ))
+  }
+  prepared <- unique(prepared)
+
+  if (!is.null(config$partition_col)) {
+    specifications <- split(prepared$partition_spec, prepared$family_id)
+    conflicting <- vapply(
+      specifications,
+      function(values) length(unique(values)) != 1L,
+      logical(1L)
+    )
+    if (any(conflicting)) {
+      rlang::abort(sprintf(
+        "Conflicting partition specifications in family/families: %s.",
+        paste(names(conflicting)[conflicting], collapse = ", ")
+      ))
+    }
   }
 
   duplicate_tip <- duplicated(prepared[c("family_id", "tip_id")])
@@ -124,6 +332,15 @@ raxml_ng_collect_input <- function(input, config) {
       "RAxML-NG sequences are not aligned to one length in family/families: %s.",
       paste(names(aligned)[!aligned], collapse = ", ")
     ))
+  }
+
+  if (!is.null(config$partition_col)) {
+    for (family_id in names(lengths_per_family)) {
+      raxml_ng_parse_partitions(
+        specifications[[family_id]][[1L]],
+        unique(lengths_per_family[[family_id]])[[1L]]
+      )
+    }
   }
 
   prepared[order(prepared$family_id, prepared$tip_id), , drop = FALSE]

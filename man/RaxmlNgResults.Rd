@@ -22,6 +22,8 @@ the analysis succeeded and where its files were saved.}
 
     \item{\code{tree_index}}{Read-only table with one row per successful tree.}
 
+    \item{\code{failed_families}}{Read-only table with one row per failed family.}
+
     \item{\code{tip_map}}{Read-only table with the original tip names and the shorter
 names used in RAxML-NG files.}
   }

@@ -1,10 +1,9 @@
-#' Infer B-cell family trees with RAxML-NG
+#' Infer family trees with RAxML-NG
 #'
-#' RAxML-NG builds a phylogenetic tree for each B-cell clone or family. This
+#' RAxML-NG builds a phylogenetic tree for each sequence family. This
 #' tool takes aligned nucleotide sequences from [immundata::ImmunData] and
-#' runs each family independently. It does not identify clones, reconstruct
-#' germline sequences, or align sequences. Complete these steps before running
-#' RAxML-NG.
+#' runs each family independently. It does not define families, align sequences,
+#' add germlines, or root trees. Complete those steps before running RAxML-NG.
 #'
 #' @section Input to `tool$run()`:
 #' `tool$run()` accepts one [immundata::ImmunData] dataset. It does not accept a
@@ -21,9 +20,15 @@
 #' family, tip, and aligned sequence are used once. A tip cannot have two
 #' different sequences in the same family.
 #'
-#' `locus` selects the B-cell receptor chain used for the tree. With paired
+#' `locus` selects the receptor chain used for the tree. With paired
 #' receptors, only the selected chain is used. The selected locus must agree
 #' with the chains stored in the `ImmunData` dataset.
+#'
+#' If `partition_col` is set, it must contain one consistent partition
+#' specification per family in the form `name=start-end`, with partitions
+#' separated by semicolons. For example, `IGH=1-300;IGK=301-540` covers a
+#' 540-site alignment. Partitions must be unique, non-overlapping, and cover
+#' every alignment site.
 #'
 #' @section Analysis modes:
 #' The tool supports two RAxML-NG tree-inference commands:
@@ -33,9 +38,9 @@
 #'
 #' Modes that use existing trees or produce other types of output,
 #' including `evaluate`, `bootstrap`, `support`, and `ancestral`, are not part
-#' of this tool. Both supported modes use the nucleotide model `GTR+G`.
-#' RAxML-NG chooses its own number of computer threads, starting trees, random
-#' seed, and other run settings.
+#' of this tool. The default nucleotide model is `GTR+G`. Set `seed` and
+#' `threads` for reproducible execution, or omit them to retain RAxML-NG's
+#' defaults. Partitioned analyses default to scaled branch-length linkage.
 #'
 #' @section Output from `tool$run()`:
 #' `tool$run()` returns a [RaxmlNgRun]. It records where the results were
@@ -48,6 +53,8 @@
 #'   the table into R.
 #' - **`results$tree_index`:** The families that produced a tree and the path
 #'   to each tree file.
+#' - **`results$failed_families`:** Families that failed, with their exit status
+#'   and diagnostic message.
 #' - **`results$tip_map`:** The original value from `tip_col` and the shorter
 #'   tip label used in the RAxML-NG files.
 #' - **`results$read_trees()`:** One Newick tree per family, returned as a named
@@ -58,9 +65,9 @@
 #' phylogenetic analysis.
 #'
 #' Each family has its own directory containing the prepared FASTA file,
-#' RAxML-NG output, and log files. A run is successful only when every family
-#' produces a best tree. If one family fails, completed files are kept and
-#' `tool$run()` reports an error.
+#' optional partition file, RAxML-NG output, and log files. A failed family does
+#' not discard successful results. The returned run has status `"partial"` when
+#' one or more attempted families fail.
 #'
 #' @param alignment_col Name of the column containing the aligned
 #'   nucleotide sequence for each tree tip. This is not IgBLAST's AIRR
@@ -70,9 +77,21 @@
 #'   family names or numbers. Each value is analyzed independently.
 #' @param tip_col Name of the column containing the sequence name used at each
 #'   tree tip. The default is the `ImmunData` receptor ID column.
-#' @param locus B-cell receptor locus to use: `"IGH"`, `"IGK"`, or `"IGL"`.
+#' @param locus Receptor locus to use. It must agree with the receptor chains
+#'   declared by the `ImmunData` schema.
 #' @param analysis Tree-inference mode. `"search"` performs the standard
 #'   maximum-likelihood search; `"fast"` performs the faster search.
+#' @param model Non-empty RAxML-NG nucleotide model string. The same model is
+#'   used for every partition in a partitioned analysis.
+#' @param seed Optional positive integer random seed. `NULL` retains the
+#'   RAxML-NG default.
+#' @param threads Optional positive integer thread count. `NULL` retains the
+#'   RAxML-NG automatic default.
+#' @param partition_col Optional column containing one partition specification
+#'   per family.
+#' @param brlen Optional branch-length linkage mode: `"linked"`, `"scaled"`,
+#'   or `"unlinked"`. This setting requires `partition_col`; partitioned runs
+#'   default to `"scaled"`.
 #' @param config A [RaxmlNgToolConfig] created by [conf_raxml_ng()].
 #'
 #' @return `conf_raxml_ng()` returns a read-only [RaxmlNgToolConfig].
@@ -100,15 +119,28 @@ conf_raxml_ng <- function(alignment_col = "clone_sequence_alignment",
                           family_col = "clone_id",
                           tip_col = immundata::imd_schema("receptor"),
                           locus = "IGH",
-                          analysis = c("search", "fast")) {
+                          analysis = c("search", "fast"),
+                          model = "GTR+G",
+                          seed = NULL,
+                          threads = NULL,
+                          partition_col = NULL,
+                          brlen = NULL) {
   analysis <- match.arg(analysis)
+  if (!is.null(partition_col) && is.null(brlen)) {
+    brlen <- "scaled"
+  }
 
   RaxmlNgToolConfig$new(list(
     alignment_col = alignment_col,
     family_col = family_col,
     tip_col = tip_col,
     locus = locus,
-    analysis = analysis
+    analysis = analysis,
+    model = model,
+    seed = seed,
+    threads = threads,
+    partition_col = partition_col,
+    brlen = brlen
   ))
 }
 
@@ -132,8 +164,13 @@ tool_raxml_ng <- function(config = conf_raxml_ng()) {
 #' @field alignment_col Column containing family-aligned nucleotides.
 #' @field family_col Column containing the family name or number.
 #' @field tip_col Column containing the sequence name used at each tree tip.
-#' @field locus B-cell receptor locus analyzed.
+#' @field locus Receptor locus analyzed.
 #' @field analysis RAxML-NG inference mode.
+#' @field model RAxML-NG nucleotide model.
+#' @field seed Optional RAxML-NG random seed.
+#' @field threads Optional RAxML-NG thread count.
+#' @field partition_col Optional partition-specification column.
+#' @field brlen Optional partition branch-length linkage mode.
 RaxmlNgToolConfig <- R6::R6Class(
   classname = "RaxmlNgToolConfig",
   inherit = AbstractConfig,
@@ -144,6 +181,11 @@ RaxmlNgToolConfig <- R6::R6Class(
     tip_col = NULL,
     locus = NULL,
     analysis = NULL,
+    model = NULL,
+    seed = NULL,
+    threads = NULL,
+    partition_col = NULL,
+    brlen = NULL,
     #' @description
     #' Create checked RAxML-NG settings. Users should call
     #' [conf_raxml_ng()] instead.
@@ -153,17 +195,40 @@ RaxmlNgToolConfig <- R6::R6Class(
       checkmate::assert_string(values$alignment_col, min.chars = 1L)
       checkmate::assert_string(values$family_col, min.chars = 1L)
       checkmate::assert_string(values$tip_col, min.chars = 1L)
+      checkmate::assert_string(
+        values$partition_col,
+        min.chars = 1L,
+        null.ok = TRUE
+      )
       if (anyDuplicated(c(
         values$alignment_col,
         values$family_col,
-        values$tip_col
+        values$tip_col,
+        values$partition_col
       ))) {
         rlang::abort(
-          "`alignment_col`, `family_col`, and `tip_col` must be different."
+          paste(
+            "`alignment_col`, `family_col`, `tip_col`, and `partition_col`",
+            "must be different."
+          )
         )
       }
-      checkmate::assert_choice(values$locus, c("IGH", "IGK", "IGL"))
+      checkmate::assert_string(values$locus, min.chars = 1L)
       checkmate::assert_choice(values$analysis, c("search", "fast"))
+      checkmate::assert_string(values$model, min.chars = 1L)
+      if (grepl("[[:space:]]", values$model)) {
+        rlang::abort("`model` cannot contain whitespace.")
+      }
+      checkmate::assert_count(values$seed, positive = TRUE, null.ok = TRUE)
+      checkmate::assert_count(values$threads, positive = TRUE, null.ok = TRUE)
+      checkmate::assert_choice(
+        values$brlen,
+        c("linked", "scaled", "unlinked"),
+        null.ok = TRUE
+      )
+      if (is.null(values$partition_col) && !is.null(values$brlen)) {
+        rlang::abort("`brlen` requires `partition_col`.")
+      }
 
       super$initialize(values)
     }
@@ -257,7 +322,7 @@ RaxmlNgTool <- R6::R6Class(
       cli::cli_end(div)
     },
     check_impl = function() {
-      path <- Sys.which("raxml-ng")
+      path <- raxml_ng_executable()
       installed <- nzchar(path)
 
       if (installed) {
@@ -294,7 +359,7 @@ RaxmlNgTool <- R6::R6Class(
       input
     },
     run_impl = function(input, config, run_dir) {
-      executable <- Sys.which("raxml-ng")
+      executable <- raxml_ng_executable()
       if (!nzchar(executable)) {
         rlang::abort("The RAxML-NG executable `raxml-ng` was not found.")
       }
@@ -330,6 +395,11 @@ RaxmlNgTool <- R6::R6Class(
         family_dir <- fs::path(families_dir, family_name)
         fs::dir_create(family_dir)
         alignment_path <- fs::path(family_dir, "alignment.fasta")
+        model_path <- if (is.null(config$partition_col)) {
+          NULL
+        } else {
+          fs::path(family_dir, "partitions.txt")
+        }
         prefix <- fs::path(family_dir, "result")
         stdout_path <- fs::path(family_dir, "stdout.log")
         stderr_path <- fs::path(family_dir, "stderr.log")
@@ -351,22 +421,33 @@ RaxmlNgTool <- R6::R6Class(
           paste0(">", family$raxml_tip),
           family$aligned_sequence
         ))
-        writeLines(fasta, alignment_path)
-        args <- c(
-          paste0("--", config$analysis),
-          "--msa", shQuote(alignment_path),
-          "--model", "GTR+G",
-          "--prefix", shQuote(prefix)
+        writeLines(fasta, alignment_path, useBytes = TRUE)
+        if (!is.null(model_path)) {
+          partitions <- raxml_ng_parse_partitions(
+            family$partition_spec[[1L]],
+            alignment_lengths[[1L]]
+          )
+          raxml_ng_write_model_file(
+            partitions,
+            config$model,
+            model_path
+          )
+        }
+        args <- raxml_ng_command_args(
+          config,
+          alignment_path,
+          prefix,
+          model_path
         )
 
-        command <- paste(c(executable, args), collapse = " ")
+        command <- raxml_ng_format_command(executable, args)
         exit_status <- tryCatch(
-          suppressWarnings(system2(
+          raxml_ng_execute(
             executable,
             args,
-            stdout = stdout_path,
-            stderr = stderr_path
-          )),
+            stdout_path,
+            stderr_path
+          ),
           error = function(condition) {
             writeLines(conditionMessage(condition), stderr_path)
             1L
@@ -375,7 +456,7 @@ RaxmlNgTool <- R6::R6Class(
 
         status <- "failed"
         error <- NA_character_
-        if (identical(exit_status, 0L) && fs::file_exists(best_tree)) {
+        if (isTRUE(exit_status == 0L) && fs::file_exists(best_tree)) {
           status <- "success"
         } else {
           log_lines <- character()
@@ -386,10 +467,15 @@ RaxmlNgTool <- R6::R6Class(
           }
           log_lines <- log_lines[nzchar(log_lines)]
           error <- if (length(log_lines) == 0L) {
-            "RAxML-NG exited without an error message."
+            if (isTRUE(exit_status == 0L)) {
+              "RAxML-NG did not produce a best-tree file."
+            } else {
+              sprintf("RAxML-NG exited with status %s.", exit_status)
+            }
           } else {
             paste(tail(log_lines, 20L), collapse = " | ")
           }
+          error <- gsub("[\t\r\n]+", " ", error)
         }
 
         family_records[[family_index]] <- data.frame(
@@ -399,6 +485,11 @@ RaxmlNgTool <- R6::R6Class(
           n_tips = nrow(family),
           alignment_length = alignment_lengths,
           alignment = as.character(alignment_path),
+          model_file = if (is.null(model_path)) {
+            NA_character_
+          } else {
+            as.character(model_path)
+          },
           best_tree = if (fs::file_exists(best_tree)) {
             as.character(best_tree)
           } else {
@@ -412,6 +503,7 @@ RaxmlNgTool <- R6::R6Class(
           stdout = as.character(stdout_path),
           stderr = as.character(stderr_path),
           command = command,
+          exit_status = as.integer(exit_status),
           error = error,
           stringsAsFactors = FALSE
         )
@@ -432,7 +524,8 @@ RaxmlNgTool <- R6::R6Class(
         family_records$status == "failed",
         c(
           "family_id", "family_index", "n_tips", "alignment_length",
-          "alignment", "stdout", "stderr", "error"
+          "alignment", "model_file", "stdout", "stderr", "command",
+          "exit_status", "error"
         ),
         drop = FALSE
       ]
@@ -443,26 +536,19 @@ RaxmlNgTool <- R6::R6Class(
       utils::write.table(failed, file = failed_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
       utils::write.table(tip_maps, file = tip_map_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 
-      if (nrow(failed) > 0L) {
-        details <- paste(
-          sprintf("%s: %s", failed$family_id, failed$error),
-          collapse = "\n"
-        )
-        rlang::abort(paste(
-          "RAxML-NG failed for one or more families.",
-          sprintf("Run files were retained at: %s", run_dir),
-          details,
-          sep = "\n"
-        ))
-      }
-
       artifacts <- list(
         input = input_path,
         config = config_path,
         families = families_path,
         tree_index = tree_index_path,
+        failed_families = failed_path,
         tip_map = tip_map_path
       )
+      attr(artifacts, "run_status") <- if (nrow(failed) > 0L) {
+        "partial"
+      } else {
+        "success"
+      }
       artifacts
     }
   )

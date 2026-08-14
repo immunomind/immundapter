@@ -5,14 +5,19 @@
 \alias{conf_raxml_ng}
 \alias{tool_raxml_ng}
 \alias{RaxmlNgToolConfig}
-\title{Infer B-cell family trees with RAxML-NG}
+\title{Infer family trees with RAxML-NG}
 \usage{
 conf_raxml_ng(
   alignment_col = "clone_sequence_alignment",
   family_col = "clone_id",
   tip_col = immundata::imd_schema("receptor"),
   locus = "IGH",
-  analysis = c("search", "fast")
+  analysis = c("search", "fast"),
+  model = "GTR+G",
+  seed = NULL,
+  threads = NULL,
+  partition_col = NULL,
+  brlen = NULL
 )
 
 tool_raxml_ng(config = conf_raxml_ng())
@@ -29,10 +34,27 @@ family names or numbers. Each value is analyzed independently.}
 \item{tip_col}{Name of the column containing the sequence name used at each
 tree tip. The default is the \code{ImmunData} receptor ID column.}
 
-\item{locus}{B-cell receptor locus to use: \code{"IGH"}, \code{"IGK"}, or \code{"IGL"}.}
+\item{locus}{Receptor locus to use. It must agree with the receptor chains
+declared by the \code{ImmunData} schema.}
 
 \item{analysis}{Tree-inference mode. \code{"search"} performs the standard
 maximum-likelihood search; \code{"fast"} performs the faster search.}
+
+\item{model}{Non-empty RAxML-NG nucleotide model string. The same model is
+used for every partition in a partitioned analysis.}
+
+\item{seed}{Optional positive integer random seed. \code{NULL} retains the
+RAxML-NG default.}
+
+\item{threads}{Optional positive integer thread count. \code{NULL} retains the
+RAxML-NG automatic default.}
+
+\item{partition_col}{Optional column containing one partition specification
+per family.}
+
+\item{brlen}{Optional branch-length linkage mode: \code{"linked"}, \code{"scaled"},
+or \code{"unlinked"}. This setting requires \code{partition_col}; partitioned runs
+default to \code{"scaled"}.}
 
 \item{config}{A \link{RaxmlNgToolConfig} created by \code{\link[=conf_raxml_ng]{conf_raxml_ng()}}.}
 }
@@ -41,11 +63,10 @@ maximum-likelihood search; \code{"fast"} performs the faster search.}
 \code{tool_raxml_ng()} returns a reusable \link{RaxmlNgTool}.
 }
 \description{
-RAxML-NG builds a phylogenetic tree for each B-cell clone or family. This
+RAxML-NG builds a phylogenetic tree for each sequence family. This
 tool takes aligned nucleotide sequences from \link[immundata:ImmunData]{immundata::ImmunData} and
-runs each family independently. It does not identify clones, reconstruct
-germline sequences, or align sequences. Complete these steps before running
-RAxML-NG.
+runs each family independently. It does not define families, align sequences,
+add germlines, or root trees. Complete those steps before running RAxML-NG.
 
 \code{RaxmlNgToolConfig} stores validated settings for one type of family-level
 RAxML-NG analysis. It contains no sequences and no trees. Create it with
@@ -70,9 +91,15 @@ All three values must be present and non-empty. Repeated rows with the same
 family, tip, and aligned sequence are used once. A tip cannot have two
 different sequences in the same family.
 
-\code{locus} selects the B-cell receptor chain used for the tree. With paired
+\code{locus} selects the receptor chain used for the tree. With paired
 receptors, only the selected chain is used. The selected locus must agree
 with the chains stored in the \code{ImmunData} dataset.
+
+If \code{partition_col} is set, it must contain one consistent partition
+specification per family in the form \code{name=start-end}, with partitions
+separated by semicolons. For example, \verb{IGH=1-300;IGK=301-540} covers a
+540-site alignment. Partitions must be unique, non-overlapping, and cover
+every alignment site.
 }
 
 \section{Analysis modes}{
@@ -85,9 +112,9 @@ The tool supports two RAxML-NG tree-inference commands:
 
 Modes that use existing trees or produce other types of output,
 including \code{evaluate}, \code{bootstrap}, \code{support}, and \code{ancestral}, are not part
-of this tool. Both supported modes use the nucleotide model \code{GTR+G}.
-RAxML-NG chooses its own number of computer threads, starting trees, random
-seed, and other run settings.
+of this tool. The default nucleotide model is \code{GTR+G}. Set \code{seed} and
+\code{threads} for reproducible execution, or omit them to retain RAxML-NG's
+defaults. Partitioned analyses default to scaled branch-length linkage.
 }
 
 \section{Output from \code{tool$run()}}{
@@ -102,6 +129,8 @@ succeeded and where its files were saved. Use \code{dplyr::collect()} to read
 the table into R.
 \item \strong{\code{results$tree_index}:} The families that produced a tree and the path
 to each tree file.
+\item \strong{\code{results$failed_families}:} Families that failed, with their exit status
+and diagnostic message.
 \item \strong{\code{results$tip_map}:} The original value from \code{tip_col} and the shorter
 tip label used in the RAxML-NG files.
 \item \strong{\code{results$read_trees()}:} One Newick tree per family, returned as a named
@@ -113,9 +142,9 @@ Tree files remain in the run directory. Trees cannot be added as columns to
 phylogenetic analysis.
 
 Each family has its own directory containing the prepared FASTA file,
-RAxML-NG output, and log files. A run is successful only when every family
-produces a best tree. If one family fails, completed files are kept and
-\code{tool$run()} reports an error.
+optional partition file, RAxML-NG output, and log files. A failed family does
+not discard successful results. The returned run has status \code{"partial"} when
+one or more attempted families fail.
 }
 
 \examples{
@@ -150,9 +179,19 @@ trees <- results$read_trees()
 
     \item{\code{tip_col}}{Column containing the sequence name used at each tree tip.}
 
-    \item{\code{locus}}{B-cell receptor locus analyzed.}
+    \item{\code{locus}}{Receptor locus analyzed.}
 
     \item{\code{analysis}}{RAxML-NG inference mode.}
+
+    \item{\code{model}}{RAxML-NG nucleotide model.}
+
+    \item{\code{seed}}{Optional RAxML-NG random seed.}
+
+    \item{\code{threads}}{Optional RAxML-NG thread count.}
+
+    \item{\code{partition_col}}{Optional partition-specification column.}
+
+    \item{\code{brlen}}{Optional partition branch-length linkage mode.}
   }
   \if{html}{\out{</div>}}
 }

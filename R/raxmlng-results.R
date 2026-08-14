@@ -9,6 +9,7 @@
 #' @field families Read-only table with one row per family, including whether
 #'   the analysis succeeded and where its files were saved.
 #' @field tree_index Read-only table with one row per successful tree.
+#' @field failed_families Read-only table with one row per failed family.
 #' @field tip_map Read-only table with the original tip names and the shorter
 #'   names used in RAxML-NG files.
 #'
@@ -65,6 +66,14 @@ RaxmlNgResults <- R6::R6Class(
         rlang::abort("`tree_index` is read-only.")
       }
       path <- private$.run$artifacts$tree_index
+      checkmate::assert_file_exists(path)
+      duckplyr::read_csv_duckdb(path, options = list(delim = "\t"))
+    },
+    failed_families = function(value) {
+      if (!missing(value)) {
+        rlang::abort("`failed_families` is read-only.")
+      }
+      path <- private$.run$artifacts$failed_families
       checkmate::assert_file_exists(path)
       duckplyr::read_csv_duckdb(path, options = list(delim = "\t"))
     },
