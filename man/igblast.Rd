@@ -77,6 +77,8 @@ saved. To read the result tables, first run \code{results <- run$results()}.
 use \code{dplyr::collect(results$airr)}.
 \item \strong{\code{results$mapping}:} A table that shows which input chain or FASTA
 sequence produced each AIRR \code{sequence_id}.
+\item \strong{\code{results$query_status}:} A table accounting for every original input,
+including records excluded before submission or absent from AIRR output.
 \item \strong{\code{results$raw_output}:} The file path of the AIRR TSV result.
 }
 

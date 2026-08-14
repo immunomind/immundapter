@@ -5,15 +5,15 @@
 \title{Parsed IgBLAST results}
 \description{
 \code{IgblastResults} provides the complete AIRR output and the files created by
-IgBLAST. \verb{$airr}, \verb{$mapping}, and \verb{$final} stay on disk until you use
-\code{dplyr::collect()}.
+IgBLAST. \verb{$airr}, \verb{$mapping}, \verb{$query_status}, and \verb{$final} stay on disk
+until you use \code{dplyr::collect()}.
 }
 \section{Output depends on the input}{
 
-All runs provide \verb{$airr}, \verb{$mapping}, and \verb{$raw_output}. Runs made from
-\code{ImmunData} can use \code{results$annotate(idata, columns = ...)} to add AIRR
-fields to the original chains. By default, it adds \code{sequence_alignment} and
-\code{germline_alignment}.
+All runs provide \verb{$airr}, \verb{$mapping}, \verb{$query_status}, and \verb{$raw_output}.
+Runs made from \code{ImmunData} can use
+\code{results$annotate(idata, columns = ...)} to add AIRR fields to the original
+chains. By default, it adds \code{sequence_alignment} and \code{germline_alignment}.
 
 Runs made from a FASTA file cannot annotate \code{ImmunData} directly. Runs made
 from a named FASTA-and-annotations pair also provide \verb{$final} and
@@ -34,6 +34,9 @@ Additional \verb{$annotate()} arguments, including \code{conflicts}, are passed 
 
     \item{\code{mapping}}{Read-only table showing which input chain or FASTA sequence
 produced each IgBLAST \code{sequence_id}.}
+
+    \item{\code{query_status}}{Read-only table accounting for every original input and
+whether it was submitted, assigned, unassigned, or missing from output.}
 
     \item{\code{raw_output}}{Read-only file path to the AIRR TSV output.}
 

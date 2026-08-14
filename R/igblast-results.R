@@ -1,14 +1,14 @@
 #' Parsed IgBLAST results
 #'
 #' `IgblastResults` provides the complete AIRR output and the files created by
-#' IgBLAST. `$airr`, `$mapping`, and `$final` stay on disk until you use
-#' `dplyr::collect()`.
+#' IgBLAST. `$airr`, `$mapping`, `$query_status`, and `$final` stay on disk
+#' until you use `dplyr::collect()`.
 #'
 #' @section Output depends on the input:
-#' All runs provide `$airr`, `$mapping`, and `$raw_output`. Runs made from
-#' `ImmunData` can use `results$annotate(idata, columns = ...)` to add AIRR
-#' fields to the original chains. By default, it adds `sequence_alignment` and
-#' `germline_alignment`.
+#' All runs provide `$airr`, `$mapping`, `$query_status`, and `$raw_output`.
+#' Runs made from `ImmunData` can use
+#' `results$annotate(idata, columns = ...)` to add AIRR fields to the original
+#' chains. By default, it adds `sequence_alignment` and `germline_alignment`.
 #'
 #' Runs made from a FASTA file cannot annotate `ImmunData` directly. Runs made
 #' from a named FASTA-and-annotations pair also provide `$final` and
@@ -20,6 +20,8 @@
 #' @field airr Read-only AIRR result table.
 #' @field mapping Read-only table showing which input chain or FASTA sequence
 #'   produced each IgBLAST `sequence_id`.
+#' @field query_status Read-only table accounting for every original input and
+#'   whether it was submitted, assigned, unassigned, or missing from output.
 #' @field raw_output Read-only file path to the AIRR TSV output.
 #' @field final Read-only table containing the original annotation columns and
 #'   AIRR results for paired FASTA and annotation input.
@@ -40,7 +42,11 @@ IgblastResults <- R6::R6Class(
       checkmate::assert_file_exists(path)
       duckplyr::read_csv_duckdb(
         path,
-        options = list(delim = "\t", header = TRUE)
+        options = list(
+          delim = "\t",
+          header = TRUE,
+          types = list(c(sequence_id = "VARCHAR"))
+        )
       )
     },
     mapping = function(value) {
@@ -48,6 +54,14 @@ IgblastResults <- R6::R6Class(
         rlang::abort("`mapping` is read-only.")
       }
       path <- private$.run$artifacts$mapping
+      checkmate::assert_file_exists(path)
+      duckplyr::read_parquet_duckdb(path)
+    },
+    query_status = function(value) {
+      if (!missing(value)) {
+        rlang::abort("`query_status` is read-only.")
+      }
+      path <- private$.run$artifacts$query_status
       checkmate::assert_file_exists(path)
       duckplyr::read_parquet_duckdb(path)
     },
@@ -73,7 +87,11 @@ IgblastResults <- R6::R6Class(
       checkmate::assert_file_exists(path)
       duckplyr::read_csv_duckdb(
         path,
-        options = list(delim = "\t", header = TRUE)
+        options = list(
+          delim = "\t",
+          header = TRUE,
+          types = list(c(sequence_id = "VARCHAR"))
+        )
       )
     },
     final_output = function(value) {

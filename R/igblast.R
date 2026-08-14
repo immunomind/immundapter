@@ -38,6 +38,8 @@
 #'   use `dplyr::collect(results$airr)`.
 #' - **`results$mapping`:** A table that shows which input chain or FASTA
 #'   sequence produced each AIRR `sequence_id`.
+#' - **`results$query_status`:** A table accounting for every original input,
+#'   including records excluded before submission or absent from AIRR output.
 #' - **`results$raw_output`:** The file path of the AIRR TSV result.
 #'
 #' Additional output depends on the input form:
@@ -342,6 +344,7 @@ IgblastTool <- R6::R6Class(
       prepared <- igblast_prepare_input(input, config$sequence_col)
       input_path <- fs::path(run_dir, "igblast-input.fasta")
       mapping_path <- fs::path(run_dir, "igblast-query-map.parquet")
+      status_path <- fs::path(run_dir, "igblast-query-status.parquet")
       output_path <- fs::path(run_dir, "igblast-airr.tsv")
       final_path <- fs::path(run_dir, "igblast-final.tsv")
       config_path <- fs::path(run_dir, "igblast-config.json")
@@ -383,6 +386,67 @@ IgblastTool <- R6::R6Class(
         config$run_args
       )
 
+      igblast_call(arguments)
+      if (!fs::file_exists(output_path)) {
+        rlang::abort("IgBLAST did not produce AIRR output.")
+      }
+
+      airr <- duckplyr::read_csv_duckdb(
+        output_path,
+        options = list(
+          delim = "\t",
+          header = TRUE,
+          types = list(c(sequence_id = "VARCHAR"))
+        )
+      )
+      assignments <- igblast_validate_airr(airr, prepared$queries)
+      query_status <- igblast_make_query_status(
+        prepared$input_status,
+        assignments
+      )
+      duckplyr::compute_parquet(query_status, status_path)
+
+      artifacts <- list(
+        input = input_path,
+        config = config_path,
+        mapping = mapping_path,
+        query_status = status_path,
+        airr = output_path
+      )
+      if (!is.null(prepared$annotations)) {
+        final <- igblast_merge_annotations(
+          airr,
+          prepared$annotations,
+          prepared$annotation_id_col,
+          query_status
+        )
+        duckplyr::compute_csv(
+          final,
+          final_path,
+          options = list(delimiter = "\t", header = TRUE)
+        )
+        artifacts$final <- final_path
+      }
+
+      input_counts <- query_status |>
+        dplyr::summarise(
+          number_original_inputs = dplyr::n(),
+          number_submitted_inputs = sum(submission_status == "submitted")
+        ) |>
+        dplyr::collect() |>
+        as.data.frame()
+      status_counts <- query_status |>
+        dplyr::count(result_status, name = "status_count") |>
+        dplyr::collect() |>
+        as.data.frame()
+      result_status_counts <- stats::setNames(
+        as.list(rep(0L, 4L)),
+        c("assigned", "unassigned", "missing_output", "not_submitted")
+      )
+      result_status_counts[status_counts$result_status] <- as.list(
+        status_counts$status_count
+      )
+
       jsonlite::write_json(
         list(
           input_type = if (inherits(input, "ImmunData")) {
@@ -394,44 +458,24 @@ IgblastTool <- R6::R6Class(
           },
           sequence_col = config$sequence_col,
           num_threads = config$num_threads,
-          run_args = config$run_args,
           fixed = fixed[setdiff(names(fixed), c("query", "out"))],
-          runtime = runtime
+          run_args = config$run_args,
+          effective_args = arguments[
+            setdiff(names(arguments), c("query", "out"))
+          ],
+          runtime = runtime,
+          number_original_inputs = input_counts$number_original_inputs,
+          number_submitted_inputs = input_counts$number_submitted_inputs,
+          number_unique_submitted_sequences = length(unique(
+            prepared$queries$sequence
+          )),
+          result_status_counts = result_status_counts
         ),
         path = config_path,
         auto_unbox = TRUE,
         null = "null",
         pretty = TRUE
       )
-
-      igblast_call(arguments)
-      if (!fs::file_exists(output_path)) {
-        rlang::abort("IgBLAST did not produce AIRR output.")
-      }
-
-      artifacts <- list(
-        input = input_path,
-        config = config_path,
-        mapping = mapping_path,
-        airr = output_path
-      )
-      if (!is.null(prepared$annotations)) {
-        airr <- duckplyr::read_csv_duckdb(
-          output_path,
-          options = list(delim = "\t", header = TRUE)
-        )
-        final <- igblast_merge_annotations(
-          airr,
-          prepared$annotations,
-          prepared$annotation_id_col
-        )
-        duckplyr::compute_csv(
-          final,
-          final_path,
-          options = list(delimiter = "\t", header = TRUE)
-        )
-        artifacts$final <- final_path
-      }
 
       artifacts
     }

@@ -18,6 +18,7 @@ igblast_runtime_info <- function() {
 
   info <- getExportedValue("igblastr", "igblast_info")()
   runtime$igblast_version <- as.character(info$igblastn_version)
+  runtime$igblast_build <- as.character(info$igblast_build)
   runtime$igblast_root <- as.character(info$igblast_root)
   runtime$germline_db <- tryCatch(
     suppressMessages(getExportedValue("igblastr", "use_germline_db")()),
@@ -42,13 +43,14 @@ igblast_prepare_immundata <- function(idata, sequence_col) {
     ))
   }
 
-  chains <- idata$annotations |>
+  inputs <- idata$annotations |>
     dplyr::select(dplyr::all_of(required)) |>
-    dplyr::rename(sequence = dplyr::all_of(sequence_col)) |>
+    dplyr::rename(sequence = dplyr::all_of(sequence_col))
+
+  chains <- inputs |>
     dplyr::filter(!is.na(sequence)) |>
     dplyr::filter(sequence != "") |>
-    dplyr::mutate(sequence = toupper(sequence)) |>
-    dplyr::distinct()
+    dplyr::mutate(sequence = toupper(sequence))
 
   queries <- chains |>
     dplyr::select(sequence) |>
@@ -86,7 +88,38 @@ igblast_prepare_immundata <- function(idata, sequence_col) {
     ) |>
     dplyr::distinct()
 
-  list(queries = queries, mapping = mapping)
+  input_status <- inputs |>
+    dplyr::mutate(
+      normalized_sequence = toupper(sequence),
+      submission_status = dplyr::case_when(
+        is.na(sequence) ~ "excluded_missing_sequence",
+        sequence == "" ~ "excluded_empty_sequence",
+        TRUE ~ "submitted"
+      ),
+      submission_reason = dplyr::case_when(
+        is.na(sequence) ~ "missing_sequence",
+        sequence == "" ~ "empty_sequence",
+        TRUE ~ NA_character_
+      )
+    ) |>
+    dplyr::left_join(
+      lookup |>
+        dplyr::rename(normalized_sequence = sequence),
+      by = "normalized_sequence"
+    ) |>
+    dplyr::transmute(
+      input_id = !!rlang::sym(chain_col),
+      input_id_type = "imd_chain_id",
+      igblast_query_id = !!rlang::sym("igblast_query_id"),
+      submission_status = !!rlang::sym("submission_status"),
+      submission_reason = !!rlang::sym("submission_reason")
+    )
+
+  list(
+    queries = queries,
+    mapping = mapping,
+    input_status = input_status
+  )
 }
 
 
@@ -185,7 +218,20 @@ igblast_prepare_fasta <- function(path) {
     ))) |>
     dplyr::distinct()
 
-  list(queries = queries, mapping = mapping)
+  input_status <- records |>
+    dplyr::transmute(
+      input_id = !!rlang::sym("fasta_id"),
+      input_id_type = "fasta_id",
+      igblast_query_id = !!rlang::sym("fasta_id"),
+      submission_status = "submitted",
+      submission_reason = NA_character_
+    )
+
+  list(
+    queries = queries,
+    mapping = mapping,
+    input_status = input_status
+  )
 }
 
 
@@ -204,19 +250,31 @@ igblast_prepare_fasta_annotations <- function(fasta_path, annotations_path) {
       "IgBLAST annotations must be a CSV or TSV file, optionally gzip-compressed."
     )
   }
-  annotations <- duckplyr::read_csv_duckdb(
+  annotation_header <- duckplyr::read_csv_duckdb(
     annotations_path,
-    options = list(delim = delimiter, header = TRUE)
+    options = list(
+      delim = delimiter,
+      header = TRUE,
+      all_varchar = TRUE
+    )
   )
-  annotation_id_col <- if ("contig_id" %in% colnames(annotations)) {
+  annotation_id_col <- if ("contig_id" %in% colnames(annotation_header)) {
     "contig_id"
-  } else if ("sequence_id" %in% colnames(annotations)) {
+  } else if ("sequence_id" %in% colnames(annotation_header)) {
     "sequence_id"
   } else {
     rlang::abort(
       "IgBLAST annotations must contain `contig_id` or `sequence_id`."
     )
   }
+  annotations <- duckplyr::read_csv_duckdb(
+    annotations_path,
+    options = list(
+      delim = delimiter,
+      header = TRUE,
+      types = list(stats::setNames("VARCHAR", annotation_id_col))
+    )
+  )
 
   annotation_ids <- annotations |>
     dplyr::transmute(
@@ -278,7 +336,25 @@ igblast_prepare_fasta_annotations <- function(fasta_path, annotations_path) {
 }
 
 
-igblast_merge_annotations <- function(airr, annotations, annotation_id_col) {
+igblast_merge_annotations <- function(
+  airr,
+  annotations,
+  annotation_id_col,
+  query_status
+) {
+  status <- query_status |>
+    dplyr::select(dplyr::all_of(c(
+      "igblast_query_id",
+      "submission_status",
+      "result_status",
+      "reason"
+    ))) |>
+    dplyr::rename(
+      sequence_id = dplyr::all_of("igblast_query_id")
+    )
+  airr <- status |>
+    dplyr::left_join(airr, by = "sequence_id")
+
   airr_columns <- colnames(airr)
   annotation_columns <- colnames(annotations)
   if (!"sequence_id" %in% airr_columns) {
@@ -337,6 +413,134 @@ igblast_merge_annotations <- function(airr, annotations, annotation_id_col) {
 
   merged |>
     dplyr::relocate(dplyr::all_of("sequence_id"), .before = 1L)
+}
+
+
+igblast_validate_airr <- function(airr, submitted_queries) {
+  if (!"sequence_id" %in% colnames(airr)) {
+    rlang::abort("IgBLAST AIRR output is missing `sequence_id`.")
+  }
+
+  result_ids <- airr |>
+    dplyr::select(dplyr::all_of("sequence_id"))
+  invalid_ids <- result_ids |>
+    dplyr::filter(
+      is.na(!!rlang::sym("sequence_id")) |
+        trimws(!!rlang::sym("sequence_id")) == ""
+    ) |>
+    dplyr::collect() |>
+    as.data.frame()
+  if (nrow(invalid_ids) > 0L) {
+    rlang::abort(
+      "IgBLAST AIRR `sequence_id` values must not be missing or empty."
+    )
+  }
+
+  duplicate_ids <- result_ids |>
+    dplyr::count(!!rlang::sym("sequence_id"), name = "result_count") |>
+    dplyr::filter(!!rlang::sym("result_count") > 1L) |>
+    dplyr::collect() |>
+    as.data.frame()
+  if (nrow(duplicate_ids) > 0L) {
+    rlang::abort(sprintf(
+      "IgBLAST AIRR `sequence_id` values must be unique; duplicated: %s.",
+      paste(utils::head(duplicate_ids$sequence_id, 10L), collapse = ", ")
+    ))
+  }
+
+  submitted_ids <- duckplyr::as_duckdb_tibble(data.frame(
+    sequence_id = submitted_queries$igblast_query_id,
+    stringsAsFactors = FALSE
+  ))
+  unknown_ids <- result_ids |>
+    dplyr::anti_join(submitted_ids, by = "sequence_id") |>
+    dplyr::collect() |>
+    as.data.frame()
+  if (nrow(unknown_ids) > 0L) {
+    rlang::abort(sprintf(
+      paste(
+        "IgBLAST AIRR output contains `sequence_id` values that were not",
+        "submitted: %s."
+      ),
+      paste(utils::head(unknown_ids$sequence_id, 10L), collapse = ", ")
+    ))
+  }
+
+  assignments <- result_ids
+  if ("v_call" %in% colnames(airr)) {
+    assignments <- assignments |>
+      dplyr::left_join(
+        airr |>
+          dplyr::select(dplyr::all_of(c("sequence_id", "v_call"))),
+        by = "sequence_id"
+      ) |>
+      dplyr::mutate(
+        has_v_call = !is.na(!!rlang::sym("v_call")) &
+          trimws(!!rlang::sym("v_call")) != ""
+      ) |>
+      dplyr::select(-dplyr::all_of("v_call"))
+  } else {
+    assignments <- assignments |>
+      dplyr::mutate(has_v_call = FALSE)
+  }
+  if ("j_call" %in% colnames(airr)) {
+    assignments <- assignments |>
+      dplyr::left_join(
+        airr |>
+          dplyr::select(dplyr::all_of(c("sequence_id", "j_call"))),
+        by = "sequence_id"
+      ) |>
+      dplyr::mutate(
+        has_j_call = !is.na(!!rlang::sym("j_call")) &
+          trimws(!!rlang::sym("j_call")) != ""
+      ) |>
+      dplyr::select(-dplyr::all_of("j_call"))
+  } else {
+    assignments <- assignments |>
+      dplyr::mutate(has_j_call = FALSE)
+  }
+
+  assignments |>
+    dplyr::transmute(
+      igblast_query_id = !!rlang::sym("sequence_id"),
+      airr_result_status = dplyr::if_else(
+        !!rlang::sym("has_v_call") & !!rlang::sym("has_j_call"),
+        "assigned",
+        "unassigned"
+      ),
+      airr_reason = dplyr::case_when(
+        !(!!rlang::sym("has_v_call")) &
+          !(!!rlang::sym("has_j_call")) ~
+          "missing_v_and_j_call",
+        !(!!rlang::sym("has_v_call")) ~ "missing_v_call",
+        !(!!rlang::sym("has_j_call")) ~ "missing_j_call",
+        TRUE ~ NA_character_
+      )
+    )
+}
+
+
+igblast_make_query_status <- function(input_status, airr_assignments) {
+  input_status |>
+    dplyr::left_join(airr_assignments, by = "igblast_query_id") |>
+    dplyr::transmute(
+      input_id = !!rlang::sym("input_id"),
+      input_id_type = !!rlang::sym("input_id_type"),
+      igblast_query_id = !!rlang::sym("igblast_query_id"),
+      submission_status = !!rlang::sym("submission_status"),
+      result_status = dplyr::case_when(
+        !!rlang::sym("submission_status") != "submitted" ~ "not_submitted",
+        is.na(!!rlang::sym("airr_result_status")) ~ "missing_output",
+        TRUE ~ !!rlang::sym("airr_result_status")
+      ),
+      reason = dplyr::case_when(
+        !!rlang::sym("submission_status") != "submitted" ~
+          !!rlang::sym("submission_reason"),
+        is.na(!!rlang::sym("airr_result_status")) ~
+          "absent_from_airr_output",
+        TRUE ~ !!rlang::sym("airr_reason")
+      )
+    )
 }
 
 

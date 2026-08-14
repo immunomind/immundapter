@@ -6,6 +6,7 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
         igblastr_version = "1.0.23",
         igblast_installed = TRUE,
         igblast_version = "1.22.0",
+        igblast_build = "igblast 1.22.0, mock build",
         igblast_root = "/mock/igblast",
         germline_db = "IMGT.mock.Homo_sapiens.TRB",
         c_region_db = ""
@@ -53,7 +54,7 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
   expect_equal(run$config$num_threads, 3L)
   expect_setequal(
     names(run$artifacts),
-    c("input", "config", "mapping", "airr")
+    c("input", "config", "mapping", "query_status", "airr")
   )
   expect_true(all(vapply(
     run$artifacts,
@@ -77,12 +78,30 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
     manifest$runtime$germline_db,
     "IMGT.mock.Homo_sapiens.TRB"
   )
+  expect_equal(manifest$runtime$igblastr_version, "1.0.23")
+  expect_equal(manifest$runtime$igblast_version, "1.22.0")
+  expect_equal(
+    manifest$runtime$igblast_build,
+    "igblast 1.22.0, mock build"
+  )
+  expect_equal(manifest$runtime$igblast_root, "/mock/igblast")
+  expect_equal(manifest$number_original_inputs, 3L)
+  expect_equal(manifest$number_submitted_inputs, 2L)
+  expect_equal(manifest$number_unique_submitted_sequences, 1L)
+  expect_equal(manifest$result_status_counts$assigned, 2L)
+  expect_equal(manifest$result_status_counts$unassigned, 0L)
+  expect_equal(manifest$result_status_counts$missing_output, 0L)
+  expect_equal(manifest$result_status_counts$not_submitted, 1L)
+  expect_equal(manifest$effective_args$num_threads, 3L)
+  expect_equal(manifest$effective_args$num_alignments_V, 1L)
+  expect_false(any(c("query", "out") %in% names(manifest$effective_args)))
 
   results <- run$results()
   expect_s3_class(results, "IgblastResults")
   expect_identical(results$run, run)
   expect_s3_class(results$airr, "duckplyr_df")
   expect_s3_class(results$mapping, "duckplyr_df")
+  expect_s3_class(results$query_status, "duckplyr_df")
   expect_identical(results$raw_output, run$artifacts$airr)
 
   airr <- results$airr |>
@@ -97,6 +116,40 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
     as.data.frame()
   expect_equal(nrow(mapping), 2L)
   expect_setequal(mapping$imd_chain_id, c("chain-1", "chain-2"))
+
+  query_status <- results$query_status |>
+    dplyr::collect() |>
+    as.data.frame()
+  expect_identical(
+    colnames(query_status),
+    c(
+      "input_id",
+      "input_id_type",
+      "igblast_query_id",
+      "submission_status",
+      "result_status",
+      "reason"
+    )
+  )
+  expect_equal(nrow(query_status), 3L)
+  expect_true(all(
+    query_status$result_status[
+      query_status$input_id %in% c("chain-1", "chain-2")
+    ] == "assigned"
+  ))
+  expect_equal(
+    query_status$result_status[query_status$input_id == "chain-3"],
+    "not_submitted"
+  )
+  expect_equal(
+    query_status$reason[query_status$input_id == "chain-3"],
+    "missing_sequence"
+  )
+  expect_error(
+    results$query_status <- NULL,
+    "`query_status` is read-only",
+    fixed = TRUE
+  )
 
   annotated <- results$annotate(idata)
   annotated_alignments <- annotated$annotations |>
@@ -247,6 +300,66 @@ test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
   )
 })
 
+test_that("IgBLAST preserves numeric-looking identifiers as text", {
+  testthat::local_mocked_bindings(
+    igblast_runtime_info = function() {
+      list(
+        package_installed = TRUE,
+        igblastr_version = "1.0.23",
+        igblast_installed = TRUE,
+        igblast_version = "1.22.0",
+        igblast_root = "/mock/igblast",
+        germline_db = "IMGT.mock.Homo_sapiens.TRB",
+        c_region_db = ""
+      )
+    },
+    igblast_call = function(arguments) {
+      fasta <- readLines(arguments$query)
+      query_ids <- sub("^>", "", fasta[seq.int(
+        1L,
+        length(fasta),
+        by = 2L
+      )])
+      writeLines(
+        c(
+          "sequence_id\tv_call\tj_call",
+          paste(query_ids, "TRBV1*01", "TRBJ1*01", sep = "\t")
+        ),
+        arguments$out
+      )
+      invisible(NULL)
+    },
+    .package = "immundapter"
+  )
+
+  fasta <- withr::local_tempfile(fileext = ".fasta")
+  writeLines(c(">001", "ACGT", ">2", "TGCA"), fasta)
+  annotations <- withr::local_tempfile(fileext = ".csv")
+  writeLines(c(
+    "contig_id,barcode,reads",
+    "001,cell-1,100",
+    "2,cell-2,80"
+  ), annotations)
+
+  results <- tool_igblast()$run(
+    c(fasta = fasta, annotations = annotations),
+    output_dir = withr::local_tempdir()
+  )$results()
+  airr <- results$airr |>
+    dplyr::collect() |>
+    as.data.frame()
+  final <- results$final |>
+    dplyr::collect() |>
+    as.data.frame()
+
+  expect_type(airr$sequence_id, "character")
+  expect_equal(airr$sequence_id, c("001", "2"))
+  expect_type(final$sequence_id, "character")
+  expect_equal(final$sequence_id, c("001", "2"))
+  expect_equal(final$contig_id, c("001", "2"))
+  expect_type(final$reads, "double")
+})
+
 test_that("IgBLAST merges FASTA results with 10x annotations", {
   testthat::local_mocked_bindings(
     igblast_runtime_info = function() {
@@ -330,13 +443,17 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
   expect_equal(run$input$type, "files")
   expect_setequal(
     names(run$artifacts),
-    c("input", "config", "mapping", "airr", "final")
+    c("input", "config", "mapping", "query_status", "airr", "final")
   )
   manifest <- jsonlite::read_json(
     run$artifacts$config,
     simplifyVector = TRUE
   )
   expect_equal(manifest$input_type, "fasta_annotations")
+  expect_equal(
+    manifest$runtime$c_region_db,
+    "IMGT.mock.Homo_sapiens.C"
+  )
 
   results <- run$results()
   expect_s3_class(results$final, "duckplyr_df")
@@ -352,6 +469,7 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
   expect_equal(final$custom_metadata, c("heavy", "light"))
   expect_equal(final$locus, c("IGH", "IGK"))
   expect_equal(final$v_call, c("IGHV1-2*01", "IGKV1-5*01"))
+  expect_equal(final$result_status, c("assigned", "assigned"))
   expect_true(all(final$productive))
   expect_equal(final$old_chain, c("IGH", "IGK"))
   expect_equal(final$old_v_gene, c("OLD_IGHV", "OLD_IGKV"))

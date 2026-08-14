@@ -122,9 +122,14 @@ AbstractTool <- R6::R6Class(
       run_dir <- create_tool_run_dir(output_dir, private$.name)
 
       artifacts <- private$run_impl(input, config, run_dir)
+      status <- attr(artifacts, "run_status", exact = TRUE)
+      if (is.null(status)) {
+        status <- "success"
+      }
+      attr(artifacts, "run_status") <- NULL
 
       private$.run_class$new(list(
-        status = "success",
+        status = status,
         tool = private$.name,
         path = run_dir,
         artifacts = artifacts,
