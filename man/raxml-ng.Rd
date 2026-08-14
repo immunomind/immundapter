@@ -91,6 +91,14 @@ All three values must be present and non-empty. Repeated rows with the same
 family, tip, and aligned sequence are used once. A tip cannot have two
 different sequences in the same family.
 
+\code{additional_tips} optionally supplies backend-only tips that are appended
+after the observed tips are extracted. It must be a data frame or duckplyr
+table with \code{family_id}, \code{tip_id}, and \code{aligned_sequence} columns. Its family
+values must already occur in the extracted input. In a partitioned analysis,
+an optional \code{partition_spec} column must agree with the observed family
+specification; when omitted, that specification is inherited. Additional
+tips are never added to or joined into \code{ImmunData}.
+
 \code{locus} selects the receptor chain used for the tree. With paired
 receptors, only the selected chain is used. The selected locus must agree
 with the chains stored in the \code{ImmunData} dataset.

@@ -108,7 +108,7 @@ AbstractTool <- R6::R6Class(
     citation = function() {
       private$citation_impl()
     },
-    run = function(input, config = NULL, output_dir = NULL) {
+    run = function(input, config = NULL, output_dir = NULL, ...) {
       checkmate::assert_string(output_dir, null.ok = TRUE)
 
       if (is.null(config)) {
@@ -117,11 +117,11 @@ AbstractTool <- R6::R6Class(
         checkmate::assert_r6(config, classes = private$.config_class)
       }
 
-      input <- private$validate_input_impl(input, config)
+      input <- private$validate_input_impl(input, config, ...)
       output_dir <- resolve_tool_output_dir(input, output_dir)
       run_dir <- create_tool_run_dir(output_dir, private$.name)
 
-      artifacts <- private$run_impl(input, config, run_dir)
+      artifacts <- private$run_impl(input, config, run_dir, ...)
       status <- attr(artifacts, "run_status", exact = TRUE)
       if (is.null(status)) {
         status <- "success"
@@ -166,10 +166,10 @@ AbstractTool <- R6::R6Class(
     citation_impl = function() {
       rlang::abort("The tool must implement `citation()`.")
     },
-    validate_input_impl = function(input, config) {
+    validate_input_impl = function(input, config, ...) {
       rlang::abort("The tool must implement input validation for `run()`.")
     },
-    run_impl = function(input, config, run_dir) {
+    run_impl = function(input, config, run_dir, ...) {
       rlang::abort("The tool must implement `run()`.")
     }
   )

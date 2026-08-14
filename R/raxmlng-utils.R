@@ -235,8 +235,91 @@ raxml_ng_prepare_immundata <- function(input, config) {
 }
 
 
-raxml_ng_collect_input <- function(input, config) {
-  prepared <- raxml_ng_prepare_immundata(input, config) |>
+raxml_ng_prepare_additional_tips <- function(additional_tips,
+                                             observed,
+                                             config) {
+  if (is.null(additional_tips)) {
+    return(NULL)
+  }
+  if (!is.data.frame(additional_tips)) {
+    rlang::abort("`additional_tips` must be a data frame or duckplyr table.")
+  }
+
+  required <- c("family_id", "tip_id", "aligned_sequence")
+  missing_columns <- setdiff(required, colnames(additional_tips))
+  if (length(missing_columns) > 0L) {
+    rlang::abort(sprintf(
+      "`additional_tips` is missing required column(s): %s.",
+      paste(missing_columns, collapse = ", ")
+    ))
+  }
+
+  columns <- c(
+    required,
+    if ("partition_spec" %in% colnames(additional_tips)) "partition_spec"
+  )
+  additional_tips <- additional_tips |>
+    dplyr::select(dplyr::all_of(columns)) |>
+    duckplyr::as_duckdb_tibble()
+
+  observed_families <- observed |>
+    dplyr::select(dplyr::all_of("family_id")) |>
+    dplyr::distinct() |>
+    dplyr::collect()
+  observed_families <- as.character(observed_families$family_id)
+  additional_families <- additional_tips |>
+    dplyr::select(dplyr::all_of("family_id")) |>
+    dplyr::distinct() |>
+    dplyr::collect()
+  additional_families <- as.character(additional_families$family_id)
+  valid_family <- !is.na(additional_families) &
+    nzchar(trimws(additional_families))
+  unknown_families <- setdiff(
+    additional_families[valid_family],
+    observed_families
+  )
+  if (length(unknown_families) > 0L) {
+    rlang::abort(sprintf(
+      "`additional_tips` contains unknown family/families: %s.",
+      paste(unknown_families, collapse = ", ")
+    ))
+  }
+
+  if (!is.null(config$partition_col) &&
+      !"partition_spec" %in% colnames(additional_tips)) {
+    family_partitions <- observed |>
+      dplyr::select(dplyr::all_of(c("family_id", "partition_spec"))) |>
+      dplyr::distinct()
+    additional_tips <- additional_tips |>
+      dplyr::left_join(family_partitions, by = "family_id")
+  }
+  if (is.null(config$partition_col) &&
+      "partition_spec" %in% colnames(additional_tips)) {
+    additional_tips <- additional_tips |>
+      dplyr::select(-dplyr::all_of("partition_spec"))
+  }
+
+  additional_tips
+}
+
+
+raxml_ng_collect_input <- function(input, config, additional_tips = NULL) {
+  observed <- raxml_ng_prepare_immundata(input, config)
+  additional_tips <- raxml_ng_prepare_additional_tips(
+    additional_tips,
+    observed,
+    config
+  )
+
+  if (!is.null(additional_tips)) {
+    observed <- observed |>
+      dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
+    additional_tips <- additional_tips |>
+      dplyr::mutate(dplyr::across(dplyr::everything(), as.character))
+    observed <- dplyr::bind_rows(observed, additional_tips)
+  }
+
+  prepared <- observed |>
     dplyr::collect() |>
     as.data.frame()
   if (nrow(prepared) == 0L) {

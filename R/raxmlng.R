@@ -20,6 +20,14 @@
 #' family, tip, and aligned sequence are used once. A tip cannot have two
 #' different sequences in the same family.
 #'
+#' `additional_tips` optionally supplies backend-only tips that are appended
+#' after the observed tips are extracted. It must be a data frame or duckplyr
+#' table with `family_id`, `tip_id`, and `aligned_sequence` columns. Its family
+#' values must already occur in the extracted input. In a partitioned analysis,
+#' an optional `partition_spec` column must agree with the observed family
+#' specification; when omitted, that specification is inherited. Additional
+#' tips are never added to or joined into `ImmunData`.
+#'
 #' `locus` selects the receptor chain used for the tree. With paired
 #' receptors, only the selected chain is used. The selected locus must agree
 #' with the chains stored in the `ImmunData` dataset.
@@ -246,8 +254,9 @@ RaxmlNgToolConfig <- R6::R6Class(
 #'
 #' - **`$help()`:** Print installation instructions.
 #' - **`$check()`:** Check whether RAxML-NG is installed and report its version.
-#' - **`$run(input, config = NULL, output_dir = NULL)`:** Prepare one FASTA
-#'   alignment per family, run RAxML-NG, and return a [RaxmlNgRun].
+#' - **`$run(input, config = NULL, output_dir = NULL, additional_tips = NULL)`:**
+#'   Prepare one FASTA alignment per family, run RAxML-NG, and return a
+#'   [RaxmlNgRun].
 #' - **`$citation()`:** Reserved for future citation support.
 #'
 #' @keywords internal
@@ -262,6 +271,25 @@ RaxmlNgTool <- R6::R6Class(
     initialize = function(config = conf_raxml_ng()) {
       checkmate::assert_r6(config, classes = "RaxmlNgToolConfig")
       super$initialize("raxml-ng", config, RaxmlNgRun)
+    },
+    #' @description
+    #' Run RAxML-NG with optional backend-only tips.
+    #' @param input An [immundata::ImmunData] dataset.
+    #' @param config Optional [RaxmlNgToolConfig] overriding the tool default.
+    #' @param output_dir Optional output directory.
+    #' @param additional_tips Optional data frame or duckplyr table with
+    #'   `family_id`, `tip_id`, `aligned_sequence`, and optionally
+    #'   `partition_spec` columns.
+    run = function(input,
+                   config = NULL,
+                   output_dir = NULL,
+                   additional_tips = NULL) {
+      super$run(
+        input,
+        config = config,
+        output_dir = output_dir,
+        additional_tips = additional_tips
+      )
     }
   ),
   private = list(
@@ -349,22 +377,29 @@ RaxmlNgTool <- R6::R6Class(
     citation_impl = function() {
       rlang::abort("RAxML-NG `citation()` is not implemented yet.")
     },
-    validate_input_impl = function(input, config) {
+    validate_input_impl = function(input,
+                                   config,
+                                   additional_tips = NULL) {
       if (!inherits(input, "ImmunData")) {
         rlang::abort(
           "RAxML-NG input must be an `immundata::ImmunData` object."
         )
       }
       checkmate::assert_r6(input, classes = "ImmunData")
+      observed <- raxml_ng_prepare_immundata(input, config)
+      raxml_ng_prepare_additional_tips(additional_tips, observed, config)
       input
     },
-    run_impl = function(input, config, run_dir) {
+    run_impl = function(input,
+                        config,
+                        run_dir,
+                        additional_tips = NULL) {
       executable <- raxml_ng_executable()
       if (!nzchar(executable)) {
         rlang::abort("The RAxML-NG executable `raxml-ng` was not found.")
       }
 
-      prepared <- raxml_ng_collect_input(input, config)
+      prepared <- raxml_ng_collect_input(input, config, additional_tips)
       input_path <- fs::path(run_dir, "raxml-ng-input.tsv")
       config_path <- fs::path(run_dir, "raxml-ng-config.json")
       families_path <- fs::path(run_dir, "raxml-ng-families.tsv")

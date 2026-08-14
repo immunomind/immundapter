@@ -13,8 +13,9 @@ available tree output.
 \itemize{
 \item \strong{\verb{$help()}:} Print installation instructions.
 \item \strong{\verb{$check()}:} Check whether RAxML-NG is installed and report its version.
-\item \strong{\verb{$run(input, config = NULL, output_dir = NULL)}:} Prepare one FASTA
-alignment per family, run RAxML-NG, and return a \link{RaxmlNgRun}.
+\item \strong{\verb{$run(input, config = NULL, output_dir = NULL, additional_tips = NULL)}:}
+Prepare one FASTA alignment per family, run RAxML-NG, and return a
+\link{RaxmlNgRun}.
 \item \strong{\verb{$citation()}:} Reserved for future citation support.
 }
 }
@@ -27,6 +28,7 @@ alignment per family, run RAxML-NG, and return a \link{RaxmlNgRun}.
 \subsection{Public methods}{
   \itemize{
     \item \href{#method-RaxmlNgTool-initialize}{\code{RaxmlNgTool$new()}}
+    \item \href{#method-RaxmlNgTool-run}{\code{RaxmlNgTool$run()}}
   }
 }
 \if{html}{\out{<details open><summary>Inherited methods</summary>
@@ -34,7 +36,6 @@ alignment per family, run RAxML-NG, and return a \link{RaxmlNgRun}.
   <li><code>AbstractTool$check()</code></li>
   <li><code>AbstractTool$citation()</code></li>
   <li><code>AbstractTool$help()</code></li>
-  <li><code>AbstractTool$run()</code></li>
 </ul>
 </details>}}
 \if{html}{\out{<hr>}}
@@ -51,6 +52,35 @@ alignment per family, run RAxML-NG, and return a \link{RaxmlNgRun}.
     \if{html}{\out{<div class="arguments">}}
     \describe{
       \item{\code{config}}{A \link{RaxmlNgToolConfig} returned by \code{\link[=conf_raxml_ng]{conf_raxml_ng()}}.}
+    }
+    \if{html}{\out{</div>}}
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RaxmlNgTool-run"></a>}}
+\if{latex}{\out{\hypertarget{method-RaxmlNgTool-run}{}}}
+\subsection{\code{RaxmlNgTool$run()}}{
+  Run RAxML-NG with optional backend-only tips.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RaxmlNgTool$run(
+  input,
+  config = NULL,
+  output_dir = NULL,
+  additional_tips = NULL
+)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{input}}{An \link[immundata:ImmunData]{immundata::ImmunData} dataset.}
+      \item{\code{config}}{Optional \link{RaxmlNgToolConfig} overriding the tool default.}
+      \item{\code{output_dir}}{Optional output directory.}
+      \item{\code{additional_tips}}{Optional data frame or duckplyr table with
+\code{family_id}, \code{tip_id}, \code{aligned_sequence}, and optionally
+\code{partition_spec} columns.}
     }
     \if{html}{\out{</div>}}
   }
