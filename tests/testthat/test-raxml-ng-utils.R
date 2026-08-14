@@ -1,21 +1,3 @@
-make_raxml_test_idata <- function(annotations, chains = "IGH") {
-  annotations$sequence <- gsub(
-    "-",
-    "",
-    annotations$clone_sequence_alignment
-  )
-  annotations <- annotations |>
-    duckplyr::as_duckdb_tibble()
-  immundata::ImmunData$new(
-    schema = immundata::make_receptor_schema(
-      features = "sequence",
-      chains = chains
-    ),
-    annotations = annotations
-  )
-}
-
-
 test_that("RAxML-NG prepares family alignments from annotations", {
   annotations <- data.frame(
     imd_receptor_id = c(1:4, 2L),
@@ -45,6 +27,95 @@ test_that("RAxML-NG prepares family alignments from annotations", {
     )
   )
   expect_equal(idata$schema_receptor$features, "sequence")
+})
+
+
+test_that("RAxML-NG appends backend-only tips without changing ImmunData", {
+  annotations <- data.frame(
+    imd_receptor_id = 1:4,
+    clone_id = c("family-a", "family-a", "family-a", "family-b"),
+    genotype_id = c("genotype-1", "genotype-1", "genotype-2", "genotype-3"),
+    clone_sequence_alignment = c("ACGT", "ACGT", "ACGA", "TCGT"),
+    partitions = c(
+      "V=1-2;J=3-4", "V=1-2;J=3-4",
+      "V=1-2;J=3-4", "V=1-3;J=4-4"
+    )
+  )
+  idata <- make_raxml_test_idata(annotations)
+  before <- idata$annotations |>
+    dplyr::collect() |>
+    as.data.frame()
+  additional_tips <- raxml_test_additional_tips()
+
+  prepared <- raxml_ng_collect_input(
+    idata,
+    conf_raxml_ng(
+      tip_col = "genotype_id",
+      partition_col = "partitions"
+    ),
+    additional_tips
+  )
+  after <- idata$annotations |>
+    dplyr::collect() |>
+    as.data.frame()
+
+  expect_equal(nrow(prepared), 5L)
+  expect_equal(
+    prepared$tip_id,
+    c(
+      "family-a__germline", "genotype-1", "genotype-2",
+      "family-b__germline", "genotype-3"
+    )
+  )
+  expect_equal(
+    unique(prepared$partition_spec[prepared$family_id == "family-a"]),
+    "V=1-2;J=3-4"
+  )
+  expect_equal(before, after)
+})
+
+
+test_that("RAxML-NG validates additional tip families and conflicts", {
+  annotations <- raxml_test_annotations()
+  annotations$partitions <- "V=1-2;J=3-4"
+  idata <- make_raxml_test_idata(annotations)
+  config <- conf_raxml_ng(partition_col = "partitions")
+
+  unknown_family <- data.frame(
+    family_id = "family-b",
+    tip_id = "germline",
+    aligned_sequence = "ACGG"
+  ) |>
+    duckplyr::as_duckdb_tibble()
+  conflicting_partition <- data.frame(
+    family_id = "family-a",
+    tip_id = "germline",
+    aligned_sequence = "ACGG",
+    partition_spec = "V=1-3;J=4-4"
+  ) |>
+    duckplyr::as_duckdb_tibble()
+  conflicting_tip <- data.frame(
+    family_id = "family-a",
+    tip_id = "1",
+    aligned_sequence = "ACGG"
+  ) |>
+    duckplyr::as_duckdb_tibble()
+
+  expect_error(
+    raxml_ng_collect_input(idata, config, unknown_family),
+    "unknown family/families: family-b",
+    fixed = TRUE
+  )
+  expect_error(
+    raxml_ng_collect_input(idata, config, conflicting_partition),
+    "Conflicting partition specifications",
+    fixed = TRUE
+  )
+  expect_error(
+    raxml_ng_collect_input(idata, config, conflicting_tip),
+    "tip `1` has conflicting aligned sequences",
+    fixed = TRUE
+  )
 })
 
 
@@ -227,12 +298,8 @@ test_that("RAxML-NG writes and selects a per-family model file", {
 
 
 test_that("RAxML-NG rejects conflicting family partitions before execution", {
-  annotations <- data.frame(
-    imd_receptor_id = 1:2,
-    clone_id = "family-a",
-    clone_sequence_alignment = c("ACGT", "ACGA"),
-    partitions = c("V=1-2;J=3-4", "V=1-3;J=4-4")
-  )
+  annotations <- raxml_test_annotations()
+  annotations$partitions <- c("V=1-2;J=3-4", "V=1-3;J=4-4")
   idata <- make_raxml_test_idata(annotations)
 
   expect_error(

@@ -1,19 +1,7 @@
 test_that("tcrdist3 prepares paired ImmunData from distinct receptors", {
-  annotations <- data.frame(
-    imd_receptor_id = c(10L, 10L, 10L, 10L, 20L, 20L),
-    locus = c("TRA", "TRB", "TRA", "TRB", "TRA", "TRB"),
-    junction_aa = c("CAAA", "CBBB", "CAAA", "CBBB", "CCCC", "CDDD"),
-    v_call = c("TRAV1", "TRBV1", "TRAV1", "TRBV1", "TRAV2", "TRBV2"),
-    j_call = c("TRAJ1", "TRBJ1", "TRAJ1", "TRBJ1", "TRAJ2", "TRBJ2")
-  ) |>
-    duckplyr::as_duckdb_tibble()
-  idata <- immundata::ImmunData$new(
-    schema = list(
-      features = c("v_call", "j_call", "junction_aa"),
-      chains = c("TRA", "TRB")
-    ),
-    annotations = annotations
-  )
+  annotations <- tcrdist3_test_annotations()
+  annotations <- rbind(annotations[1:2, ], annotations)
+  idata <- make_tcrdist3_test_idata(annotations)
   config <- conf_tcrdist3(
     chains = c("alpha", "beta"),
     cdr3_cols = c(alpha = "junction_aa", beta = "junction_aa"),
@@ -41,21 +29,7 @@ test_that("tcrdist3 prepares paired ImmunData from distinct receptors", {
 })
 
 test_that("tcrdist3 selects one chain from paired ImmunData receptors", {
-  annotations <- data.frame(
-    imd_receptor_id = c(10L, 10L, 20L, 20L),
-    locus = c("TRA", "TRB", "TRA", "TRB"),
-    junction_aa = c("CAAA", "CBBB", "CCCC", "CDDD"),
-    v_call = c("TRAV1", "TRBV1", "TRAV2", "TRBV2"),
-    j_call = c("TRAJ1", "TRBJ1", "TRAJ2", "TRBJ2")
-  ) |>
-    duckplyr::as_duckdb_tibble()
-  idata <- immundata::ImmunData$new(
-    schema = list(
-      features = c("v_call", "j_call", "junction_aa"),
-      chains = c("TRA", "TRB")
-    ),
-    annotations = annotations
-  )
+  idata <- make_tcrdist3_test_idata()
 
   prepared <- tcrdist3_prepare_immundata(
     idata,
@@ -75,4 +49,3 @@ test_that("tcrdist3 selects one chain from paired ImmunData receptors", {
     )
   )
 })
-

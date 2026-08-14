@@ -55,10 +55,7 @@ test_that("IgBLAST retains missing and empty ImmunData input status", {
 })
 
 test_that("IgBLAST validates AIRR IDs and classifies every input", {
-  submitted <- data.frame(
-    igblast_query_id = c("query-1", "query-2", "query-3"),
-    sequence = c("ACGT", "TGCA", "AAAA")
-  )
+  submitted <- igblast_test_submitted_queries()
   airr <- duckplyr::as_duckdb_tibble(data.frame(
     sequence_id = c("query-1", "query-2"),
     v_call = c("TRBV1*01", "TRBV2*01"),
@@ -99,10 +96,7 @@ test_that("IgBLAST validates AIRR IDs and classifies every input", {
 })
 
 test_that("IgBLAST rejects unknown, duplicate, and malformed AIRR IDs", {
-  submitted <- data.frame(
-    igblast_query_id = c("query-1", "query-2"),
-    sequence = c("ACGT", "TGCA")
-  )
+  submitted <- igblast_test_submitted_queries()[1:2, ]
 
   expect_error(
     igblast_validate_airr(

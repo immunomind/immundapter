@@ -10,6 +10,58 @@ test_that("RAxML-NG accepts only ImmunData input", {
 })
 
 
+test_that("RAxML-NG includes additional tips in backend artifacts", {
+  unquote_arg <- function(value) {
+    sub("^['\"](.*)['\"]$", "\\1", value)
+  }
+  testthat::local_mocked_bindings(
+    raxml_ng_executable = function() "/mock/raxml-ng",
+    raxml_ng_execute = function(executable, args, stdout, stderr) {
+      prefix <- unquote_arg(args[match("--prefix", args) + 1L])
+      msa <- unquote_arg(args[match("--msa", args) + 1L])
+      tips <- sub("^>", "", grep("^>", readLines(msa), value = TRUE))
+      writeLines(
+        paste0("(", paste(tips, collapse = ","), ");"),
+        paste0(prefix, ".raxml.bestTree")
+      )
+      writeLines(character(), stdout)
+      writeLines(character(), stderr)
+      0L
+    },
+    .package = "immundapter"
+  )
+
+  idata <- make_raxml_test_idata()
+  additional_tips <- raxml_test_additional_tips() |>
+    dplyr::filter(family_id == "family-a")
+
+  run <- tool_raxml_ng()$run(
+    idata,
+    additional_tips = additional_tips,
+    output_dir = withr::local_tempdir()
+  )
+  normalized <- utils::read.delim(
+    run$artifacts$input,
+    stringsAsFactors = FALSE
+  )
+  tip_map <- run$results()$tip_map |>
+    dplyr::collect() |>
+    as.data.frame()
+
+  expect_equal(run$status, "success")
+  expect_equal(nrow(normalized), 3L)
+  expect_true("family-a__germline" %in% normalized$tip_id)
+  expect_true("family-a__germline" %in% tip_map$tip_id)
+  expect_equal(
+    idata$annotations |>
+      dplyr::summarise(n = dplyr::n()) |>
+      dplyr::collect() |>
+      dplyr::pull(n),
+    2L
+  )
+})
+
+
 test_that("RAxML-NG infers and indexes family trees", {
   testthat::skip_on_cran()
   testthat::skip_if(Sys.which("raxml-ng") == "")
@@ -194,20 +246,7 @@ test_that("RAxML-NG returns diagnostics when every family fails", {
     .package = "immundapter"
   )
 
-  annotations <- data.frame(
-    imd_receptor_id = 1:2,
-    clone_id = "family-a",
-    clone_sequence_alignment = c("ACGT", "ACGA"),
-    sequence = c("ACGT", "ACGA")
-  ) |>
-    duckplyr::as_duckdb_tibble()
-  idata <- immundata::ImmunData$new(
-    schema = immundata::make_receptor_schema(
-      features = "sequence",
-      chains = "IGH"
-    ),
-    annotations = annotations
-  )
+  idata <- make_raxml_test_idata()
   run <- tool_raxml_ng()$run(
     idata,
     output_dir = withr::local_tempdir()

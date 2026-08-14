@@ -1,41 +1,23 @@
 test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
   testthat::local_mocked_bindings(
-    igblast_runtime_info = function() {
-      list(
-        package_installed = TRUE,
-        igblastr_version = "1.0.23",
-        igblast_installed = TRUE,
-        igblast_version = "1.22.0",
-        igblast_build = "igblast 1.22.0, mock build",
-        igblast_root = "/mock/igblast",
-        germline_db = "IMGT.mock.Homo_sapiens.TRB",
-        c_region_db = ""
-      )
-    },
+    igblast_runtime_info = igblast_test_runtime_info,
     igblast_call = function(arguments) {
-      fasta <- readLines(arguments$query)
-      query_ids <- sub("^>", "", fasta[seq.int(1L, length(fasta), by = 2L)])
-      sequences <- fasta[seq.int(2L, length(fasta), by = 2L)]
+      queries <- read_igblast_test_queries(arguments)
 
-      utils::write.table(
+      write_igblast_test_airr(
+        arguments,
         data.frame(
-          sequence_id = query_ids,
-          sequence = sequences,
+          sequence_id = queries$sequence_id,
+          sequence = queries$sequence,
           locus = "TRB",
           v_call = "TRBV10-3*01",
           d_call = "TRBD1*01",
           j_call = "TRBJ2-3*01",
           productive = TRUE,
-          sequence_alignment = sequences,
-          germline_alignment = gsub("N", "A", sequences)
-        ),
-        file = arguments$out,
-        sep = "\t",
-        quote = FALSE,
-        row.names = FALSE,
-        na = ""
+          sequence_alignment = queries$sequence,
+          germline_alignment = gsub("N", "A", queries$sequence)
+        )
       )
-      invisible(NULL)
     },
     .package = "immundapter"
   )
@@ -193,40 +175,18 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
 
 test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
   testthat::local_mocked_bindings(
-    igblast_runtime_info = function() {
-      list(
-        package_installed = TRUE,
-        igblastr_version = "1.0.23",
-        igblast_installed = TRUE,
-        igblast_version = "1.22.0",
-        igblast_root = "/mock/igblast",
-        germline_db = "IMGT.mock.Homo_sapiens.TRB",
-        c_region_db = ""
-      )
-    },
+    igblast_runtime_info = igblast_test_runtime_info,
     igblast_call = function(arguments) {
-      fasta <- readLines(arguments$query)
-      query_ids <- sub("^>", "", fasta[seq.int(
-        1L,
-        length(fasta),
-        by = 2L
-      )])
-      sequences <- fasta[seq.int(2L, length(fasta), by = 2L)]
+      queries <- read_igblast_test_queries(arguments)
 
-      utils::write.table(
-        data.frame(
-          sequence_id = query_ids,
-          sequence = sequences,
-          sequence_alignment = sequences,
-          germline_alignment = sequences
-        ),
-        file = arguments$out,
-        sep = "\t",
-        quote = FALSE,
-        row.names = FALSE,
-        na = ""
+      write_igblast_test_airr(
+        arguments,
+        transform(
+          queries,
+          sequence_alignment = sequence,
+          germline_alignment = sequence
+        )
       )
-      invisible(NULL)
     },
     .package = "immundapter"
   )
@@ -302,28 +262,18 @@ test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
 
 test_that("IgBLAST preserves numeric-looking identifiers as text", {
   testthat::local_mocked_bindings(
-    igblast_runtime_info = function() {
-      list(
-        package_installed = TRUE,
-        igblastr_version = "1.0.23",
-        igblast_installed = TRUE,
-        igblast_version = "1.22.0",
-        igblast_root = "/mock/igblast",
-        germline_db = "IMGT.mock.Homo_sapiens.TRB",
-        c_region_db = ""
-      )
-    },
+    igblast_runtime_info = igblast_test_runtime_info,
     igblast_call = function(arguments) {
-      fasta <- readLines(arguments$query)
-      query_ids <- sub("^>", "", fasta[seq.int(
-        1L,
-        length(fasta),
-        by = 2L
-      )])
+      queries <- read_igblast_test_queries(arguments)
       writeLines(
         c(
           "sequence_id\tv_call\tj_call",
-          paste(query_ids, "TRBV1*01", "TRBJ1*01", sep = "\t")
+          paste(
+            queries$sequence_id,
+            "TRBV1*01",
+            "TRBJ1*01",
+            sep = "\t"
+          )
         ),
         arguments$out
       )
@@ -363,29 +313,19 @@ test_that("IgBLAST preserves numeric-looking identifiers as text", {
 test_that("IgBLAST merges FASTA results with 10x annotations", {
   testthat::local_mocked_bindings(
     igblast_runtime_info = function() {
-      list(
-        package_installed = TRUE,
-        igblastr_version = "1.0.23",
-        igblast_installed = TRUE,
-        igblast_version = "1.22.0",
-        igblast_root = "/mock/igblast",
+      igblast_test_runtime_info(
         germline_db = "IMGT.mock.Homo_sapiens.IGH+IGK+IGL",
         c_region_db = "IMGT.mock.Homo_sapiens.C"
       )
     },
     igblast_call = function(arguments) {
-      fasta <- readLines(arguments$query)
-      query_ids <- sub("^>", "", fasta[seq.int(
-        1L,
-        length(fasta),
-        by = 2L
-      )])
-      sequences <- fasta[seq.int(2L, length(fasta), by = 2L)]
+      queries <- read_igblast_test_queries(arguments)
 
-      utils::write.table(
+      write_igblast_test_airr(
+        arguments,
         data.frame(
-          sequence_id = query_ids,
-          sequence = sequences,
+          sequence_id = queries$sequence_id,
+          sequence = queries$sequence,
           locus = c("IGH", "IGK"),
           productive = TRUE,
           v_call = c("IGHV1-2*01", "IGKV1-5*01"),
@@ -395,14 +335,8 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
           cdr3 = c("TGTGCC", "TGTAAA"),
           junction = c("TGTGCCAGC", "TGTAAATTT"),
           junction_aa = c("CAS", "CKF")
-        ),
-        file = arguments$out,
-        sep = "\t",
-        quote = FALSE,
-        row.names = FALSE,
-        na = ""
+        )
       )
-      invisible(NULL)
     },
     .package = "immundapter"
   )
@@ -533,8 +467,9 @@ test_that("IgBLAST runs the human TCR fixture with igblastr", {
   )
   suppressMessages(igblastr::use_germline_db(database[[1L]]))
 
+  idata <- read_igblast_fixture()
   run <- tool_igblast()$run(
-    read_igblast_fixture(),
+    idata,
     output_dir = withr::local_tempdir()
   )
   results <- run$results()
@@ -548,13 +483,13 @@ test_that("IgBLAST runs the human TCR fixture with igblastr", {
   expect_true(all(grepl("^TRBV", airr$v_call)))
   expect_true(all(grepl("^TRBJ", airr$j_call)))
 
-  annotated <- results$annotate(read_igblast_fixture())
+  annotated <- results$annotate(idata)
   expect_true(all(
     c("sequence_alignment", "germline_alignment") %in%
       colnames(annotated$annotations)
   ))
 
-  fixture <- read_igblast_fixture()$annotations |>
+  fixture <- idata$annotations |>
     dplyr::select(source_id, sequence) |>
     dplyr::collect() |>
     as.data.frame()
