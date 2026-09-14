@@ -49,6 +49,27 @@ ToolResults <- R6::R6Class(
   ),
   private = list(
     .run = NULL,
+    artifact = function(name,
+                        value,
+                        type = c("csv", "parquet", "path"),
+                        options = list(delim = "\t"),
+                        missing_message = NULL,
+                        field = name) {
+      if (!missing(value)) {
+        rlang::abort(sprintf("`%s` is read-only.", field))
+      }
+      path <- private$.run$artifacts[[name]]
+      if (is.null(path) && !is.null(missing_message)) {
+        rlang::abort(missing_message)
+      }
+      checkmate::assert_file_exists(path)
+      switch(
+        match.arg(type),
+        csv = duckplyr::read_csv_duckdb(path, options = options),
+        parquet = duckplyr::read_parquet_duckdb(path),
+        path = path
+      )
+    },
     annotate_impl = function(idata, ...) {
       rlang::abort(
         paste(
