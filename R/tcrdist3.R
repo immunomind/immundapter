@@ -1,230 +1,203 @@
-#' Calculate T-cell receptor distances and clusters with tcrdist3
+#' @title Compare and group T-cell receptors with tcrdist3
 #'
-#' tcrdist3 measures similarity between T-cell receptors from their CDR3
-#' amino-acid sequences and V/J genes. Similar receptors have smaller distance
-#' values. In cluster mode, receptors connected within the selected distance
-#' radius are placed in the same group.
+#' @description
+#' tcrdist3 measures how similar T-cell receptors are from their CDR3
+#' amino-acid sequences and V/J genes. A smaller distance means that two
+#' receptors are more similar. The tool can return the distances alone or use
+#' them to place similar receptors into groups.
 #'
-#' @section Basic workflow:
-#' A tcrdist3 analysis has four steps:
+#' The usual workflow is:
 #'
-#' 1. Use [conf_tcrdist3()] to select the organism, receptor chains, input
-#'    columns, and analysis mode.
-#' 2. Use [tool_tcrdist3()] to create the tool.
-#' 3. Use `run <- tool$run(input)` to analyze the data.
-#' 4. Use `results <- run$results()` to read distances and clusters.
-#'
-#' In short:
-#'
-#' ```
-#' config -> tool -> run -> results
-#'                              |
-#'                              +-> annotated ImmunData (cluster mode)
+#' ```r
+#' tool <- tool_tcrdist3()
+#' run <- tool$run(idata)
+#' results <- run$results()
+#' clusters <- dplyr::collect(results$clusters)
 #' ```
 #'
-#' @section Choosing single- or paired-chain distance:
-#' `chains` controls which receptor chains contribute to the distance:
+#' @details
+#' tcrdist3 compares receptor sequences; it does not prove that receptors bind
+#' the same antigen. Treat the distance and cluster threshold as analysis
+#' choices that should be checked for the biological question and dataset.
 #'
-#' - **`chains = "beta"`:** Use only the beta chain. This also works with paired
-#'   TRA/TRB `ImmunData`; the beta chain is selected from each receptor.
-#' - **`chains = c("alpha", "beta")`:** Calculate alpha and beta distances and
-#'   add them. The input must contain both chains.
+#' Every selected chain needs a CDR3 amino-acid sequence, a V-gene call, and a
+#' J-gene call. The defaults expect human TRB data stored in `junction_aa`,
+#' `v_call`, and `j_call`.
 #'
-#' The tool checks that the selected chains are present in `ImmunData`.
+#' @section Choose distances or clusters:
 #'
-#' @section Input to `tool$run()`:
-#' `tool$run()` accepts either an [immundata::ImmunData] dataset or one text
-#' file. In both cases, each receptor must provide a CDR3 amino-acid sequence,
-#' a V gene, and a J gene for every chain selected in `chains`.
+#' Use `mode = "cluster"`, the default, to calculate distances and group
+#' receptors. Two receptors are connected when their distance is at most
+#' `radius`. All receptors connected directly or through other receptors become
+#' one cluster. Consequently, two receptors in the same cluster can have a
+#' direct distance greater than `radius`.
 #'
-#' For `ImmunData`, the tool prepares one row per distinct
-#' receptor. `cdr3_cols`, `v_gene_cols`, and `j_gene_cols` give the names of the
-#' receptor features. For paired TRA/TRB data, both chains can use the same
-#' column names because `ImmunData` already records which chain is TRA or TRB:
+#' Use `mode = "distance"` when only the pairwise distance matrix is needed.
+#' Distance-only results do not contain clusters and cannot be added to
+#' `ImmunData` with `$annotate()`.
 #'
+#' @section Choose the receptor chains:
+#'
+#' `chains` selects the chains used in the distance:
+#'
+#' * `chains = "beta"`, the default, compares TRB only. It can select the beta
+#'   chain from paired TRA/TRB `ImmunData`.
+#' * `chains = c("alpha", "beta")` compares both sides of a paired receptor.
+#'   tcrdist3 calculates one distance per chain and adds them.
+#'
+#' Alpha, beta, gamma, and delta chains are supported. `organism` must match the
+#' gene names in the data. Because paired-chain distances are sums, a `radius`
+#' chosen for one chain should not be assumed to work for two chains.
+#'
+#' For paired `ImmunData`, the receptor schema tells the tool which row belongs
+#' to each chain, so both chains can use the same feature names:
+#'
+#' ```r
+#' conf_tcrdist3(
+#'   chains = c("alpha", "beta"),
+#'   cdr3_cols = c(alpha = "junction_aa", beta = "junction_aa"),
+#'   v_gene_cols = c(alpha = "v_call", beta = "v_call"),
+#'   j_gene_cols = c(alpha = "j_call", beta = "j_call")
+#' )
 #' ```
-#' cdr3_cols  = c(alpha = "junction_aa", beta = "junction_aa")
-#' v_gene_cols = c(alpha = "v_call", beta = "v_call")
-#' j_gene_cols = c(alpha = "j_call", beta = "j_call")
-#' ```
 #'
-#' A text input may be CSV, TSV, or tab-delimited TXT. Each row must represent
-#' one receptor. A paired-chain file must have one row per paired receptor and
-#' separate CDR3, V-gene, and J-gene columns for each chain. If the
-#' file contains an `imd_receptor_id` column, that column is used as the
-#' receptor ID. Otherwise, `cell_id` is used. If neither column is present,
-#' row numbers are used.
+#' @section Choose the input:
 #'
-#' @section What happens during a run:
-#' The tool performs these steps:
+#' `tool$run()` accepts:
 #'
-#' 1. Rename the selected columns to the names required by tcrdist3.
-#' 2. If `deduplicate = TRUE`, calculate identical receptors once.
-#' 3. Calculate a distance matrix for each selected chain. For multi-chain
-#'    analysis, add the matrices.
-#' 4. Return distances in the same order as the original receptors.
-#' 5. In cluster mode, connect receptor pairs with distance less than or equal
-#'    to `radius`. Each connected group becomes one cluster.
+#' * **An `ImmunData` dataset.** The selected columns must be receptor features.
+#'   The tool prepares one row per biological receptor. Cluster results can be
+#'   added back with `results$annotate(idata)`.
+#' * **A CSV, TSV, or TXT file.** Each row must represent one receptor. Paired
+#'   receptors need separate CDR3, V-gene, and J-gene columns for each chain.
 #'
-#' A group can be connected through intermediate receptors. Therefore, two
-#' receptors in the same group can have a direct distance greater than
-#' `radius` when other receptors form a path between them.
+#' Rows missing a required value for a selected chain are excluded. For text
+#' input, `imd_receptor_id` is used as the identifier when present, followed by
+#' `cell_id`; otherwise, row numbers are used.
 #'
-#' @section Output from `tool$run()`:
-#' `tool$run()` returns a [Tcrdist3Run]. It records where the results were
-#' saved. To read them, run `results <- run$results()`.
+#' @section Run the tool:
 #'
-#' Both analysis modes provide:
+#' `tool_tcrdist3()` creates a reusable tool. Its main methods are:
 #'
-#' - **`results$mapping`:** Shows which original receptors were identical and
-#'   therefore calculated once. Use `dplyr::collect()` to read the table into R.
-#' - **`results$distances`:** Path to the pairwise distance matrix. The file is
-#'   in Python NumPy `.npy` format; it is not an R table.
+#' * `tool$help()`: print commands for installing the Python environment;
+#' * `tool$check()`: check that Python and tcrdist3 are ready;
+#' * `tool$run(input, config = NULL, output_dir = NULL)`: run one analysis.
+#'
+#' The tool keeps its default settings in `tool$config`. Supplying `config` to
+#' `$run()` replaces those settings for that run only. The completed run stores
+#' its output directory in `$path` and its saved files in `$artifacts`.
+#'
+#' @section Read the results:
+#'
+#' Call `run$results()` after a successful run. Both modes provide:
+#'
+#' * `results$distances`: the path to the complete NumPy distance matrix;
+#' * `results$mapping`: the link between input receptors and rows of that
+#'   matrix.
 #'
 #' Cluster mode also provides:
 #'
-#' - **`results$clusters`:** One row per original receptor, with its cluster
-#'   number and cluster size.
-#' - **`results$edges`:** Receptor pairs with distance less than or equal to
-#'   `radius`.
-#' - **`results$annotate(idata)`:** A new `ImmunData` dataset with
-#'   `tcrdist_cluster_id` and `tcrdist_cluster_size` receptor columns.
+#' * `results$clusters`: one cluster number and cluster size per receptor;
+#' * `results$edges`: receptor pairs whose distance is at most `radius`;
+#' * `results$annotate(idata)`: a new `ImmunData` dataset containing
+#'   `tcrdist_cluster_id` and `tcrdist_cluster_size`.
 #'
-#' Distance mode does not create clusters and cannot annotate `ImmunData`.
+#' Result tables stay on disk and are evaluated with duckplyr. Use
+#' `dplyr::collect()` when a table is small enough to bring into R memory. The
+#' distance matrix is a NumPy `.npy` file, not an R table.
 #'
-#' @section Managed Python environment:
-#' When `python = NULL`, the tool uses its own Python environment under
-#' `~/immundapter_data/environments/tcrdist3`. On Windows, it uses the
-#' corresponding `Scripts/python.exe` path. Set `IMMUNDAPTER_DATA` before
-#' creating the settings to use another root directory. `tool$help()`
-#' prints the commands that create this environment and install the supported
-#' tcrdist3 version. These commands are instructions; `$help()` does not run
-#' them.
+#' @section Calculation details:
 #'
-#' @param mode Result type. `"cluster"` creates receptor groups and allows the
-#'   original `ImmunData` to be annotated. `"distance"` creates only the
-#'   distance matrix and the table linking it to the input receptors.
-#' @param organism Host organism: `"human"` or `"mouse"`. It must match the V/J
-#'   gene names in the input.
-#' @param chains One or two unique chains selected from `"alpha"`, `"beta"`,
-#'   `"gamma"`, and `"delta"`. These are passed to `TCRrep` and determine which
-#'   chain distances contribute to the combined distance matrix.
-#' @param cdr3_cols Named character vector that gives the CDR3 amino-acid column
-#'   for every selected chain, for example `c(beta = "junction_aa")`.
-#' @param v_gene_cols Named character vector that gives the V-gene column for
-#'   every selected chain. Gene names and alleles must be recognized by the
-#'   selected tcrdist3 germline database.
-#' @param j_gene_cols Named character vector that gives the J-gene column for
-#'   every selected chain.
-#' @param db_file Germline database passed to
-#'   `tcrdist.repertoire.TCRrep`. tcrdist3 includes the default database.
-#' @param store_all_cdr Whether tcrdist3 keeps separate distance matrices for
-#'   individual CDR regions in addition to its per-chain matrices.
-#' @param deduplicate Whether identical receptors are calculated once. Output
-#'   is still reported for every original receptor.
-#' @param cpus Positive integer number of CPU cores used by tcrdist3.
-#' @param radius Largest combined distance at which two receptors are directly
-#'   connected during clustering. It must be a non-negative integer and is used
-#'   only when `mode = "cluster"`.
+#' With `deduplicate = TRUE`, identical selected receptors are calculated once
+#' and then matched back to every original receptor. `results$mapping` records
+#' this relationship. Set `store_all_cdr = FALSE` when separate
+#' region-specific distance matrices are not needed.
+#'
+#' @section Python setup:
+#'
+#' By default, immundapter uses a dedicated Python environment at
+#' `~/immundapter_data/environments/tcrdist3`. Call `tool$help()` to print the
+#' installation commands and `tool$check()` to verify the environment.
+#' `$help()` prints instructions; it does not install software.
+#'
+#' Set `IMMUNDAPTER_DATA` before creating the configuration to use another data
+#' directory, or supply `python` to use a specific Python executable.
+#'
+#' @param mode `"cluster"` groups similar receptors and returns their distances.
+#'   `"distance"` returns only the distance matrix and its input mapping.
+#' @param organism Species used to interpret V/J genes: `"human"` or `"mouse"`.
+#' @param chains One or two chains selected from `"alpha"`, `"beta"`, `"gamma"`,
+#'   and `"delta"`. With two chains, their distances are added.
+#' @param cdr3_cols Named vector giving the CDR3 amino-acid column for each
+#'   selected chain, for example `c(beta = "junction_aa")`.
+#' @param v_gene_cols Named vector giving the V-gene column for each selected
+#'   chain. Gene names must be recognized by the tcrdist3 database.
+#' @param j_gene_cols Named vector giving the J-gene column for each selected
+#'   chain.
+#' @param db_file Germline reference supplied to tcrdist3. The default reference
+#'   is included with tcrdist3.
+#' @param store_all_cdr Whether to save separate distance matrices for
+#'   individual receptor regions in addition to the combined matrices.
+#' @param deduplicate Whether to calculate identical receptors once. Results
+#'   are still reported for every original receptor.
+#' @param cpus Number of CPU cores used by tcrdist3.
+#' @param radius Largest distance that directly connects two receptors during
+#'   clustering. It is used only when `mode = "cluster"`.
 #' @param python Python executable name or path. `NULL` selects the managed
 #'   tcrdist3 environment described above.
 #' @param run_args Additional named arguments passed to `TCRrep`. This is for
-#'   advanced tcrdist3 settings. Values must be valid JSON values. Do not
-#'   include arguments controlled by immundapter, such as `cell_df`, `chains`,
-#'   or `index_cols`.
+#'   advanced settings. Values must be valid JSON values. Arguments controlled
+#'   by immundapter cannot be changed here.
 #'
-#' @param config A [Tcrdist3ToolConfig] returned by [conf_tcrdist3()].
+#' @param config Settings created by [conf_tcrdist3()].
 #'
-#' @return [conf_tcrdist3()] returns a read-only
-#'   [Tcrdist3ToolConfig]. [tool_tcrdist3()] returns a reusable
-#'   [Tcrdist3Tool].
+#' @return [conf_tcrdist3()] returns read-only tcrdist3 settings.
+#'   [tool_tcrdist3()] returns a reusable tcrdist3 tool.
 #'
-#' @examplesIf interactive()
-#' # 1. Describe the analysis.
-#' config <- conf_tcrdist3(cpus = 4L, radius = 24L)
-#'
-#' # 2. Create a reusable tool.
+#' @examplesIf identical(Sys.getenv("IMD_RUN_EXAMPLES"), "true")
+#' # Group similar TRB receptors in the bundled example.
+#' config <- conf_tcrdist3(
+#'   store_all_cdr = FALSE,
+#'   cpus = 1L,
+#'   radius = 24L
+#' )
 #' tool <- tool_tcrdist3(config)
+#' stopifnot(tool$check())
 #'
-#' # One-time environment setup and verification.
-#' tool$help()
-#' tool$check()
-#'
-#' # 3. Run the tool on a file.
 #' input_file <- system.file(
 #'   "extdata", "tcrdist3", "tcr-cluster-simple.tsv",
 #'   package = "immundapter"
 #' )
 #' run <- tool$run(
 #'   input_file,
-#'   output_dir = file.path(tempdir(), "tcrdist3-file")
+#'   output_dir = tempfile("tcrdist3-file-")
 #' )
-#'
-#' # 4. Read the cluster table.
 #' results <- run$results()
-#' dplyr::collect(results$clusters)
+#' clusters <- dplyr::collect(results$clusters)
 #'
-#' # The same settings can run on ImmunData.
+#' # Add the cluster assignments to ImmunData.
 #' snapshot <- system.file(
 #'   "extdata", "tcrdist3", "immundata-tcr-cluster-simple",
 #'   package = "immundapter"
 #' )
-#' idata <- immundata::read_immundata(snapshot)
+#' idata <- immundata::read_immundata(snapshot, verbose = FALSE)
 #' idata_run <- tool$run(
 #'   idata,
-#'   output_dir = file.path(tempdir(), "tcrdist3-immundata")
+#'   output_dir = tempfile("tcrdist3-immundata-")
 #' )
-#' idata_results <- idata_run$results()
+#' annotated_idata <- idata_run$results()$annotate(idata)
 #'
-#' # 5. Join receptor-level `tcrdist_cluster_id` assignments back.
-#' annotated <- idata_results$annotate(idata)
-#'
-#' # Distance-only runs create the input links and distance matrix.
-#' distance_tool <- tool_tcrdist3(conf_tcrdist3(mode = "distance"))
+#' # Calculate distances without creating clusters.
+#' distance_tool <- tool_tcrdist3(conf_tcrdist3(
+#'   mode = "distance", store_all_cdr = FALSE
+#' ))
 #' distance_run <- distance_tool$run(
-#'   idata,
-#'   output_dir = file.path(tempdir(), "tcrdist3-distance")
+#'   input_file,
+#'   output_dir = tempfile("tcrdist3-distance-")
 #' )
-#' distance_results <- distance_run$results()
-#' distance_results$distances
-#' # distance_results$annotate(idata) gives an actionable error because there
-#' # are no receptor-level annotations in a distance-only result.
-#'
-#' # Build paired TRA/TRB ImmunData from the bundled long-form example.
-#' paired_input <- system.file(
-#'   "extdata", "tcrdist3", "tcr-cluster-paired-simple.tsv",
-#'   package = "immundapter"
-#' )
-#' paired_idata <- immundata::read_repertoires(
-#'   path = paired_input,
-#'   schema = immundata::make_receptor_schema(
-#'     features = c("v_call", "j_call", "junction_aa"),
-#'     chains = c("TRA", "TRB")
-#'   ),
-#'   barcode_col = "cell_id",
-#'   locus_col = "locus",
-#'   umi_col = "duplicate_count",
-#'   output_folder = file.path(tempdir(), "paired-immundata"),
-#'   repertoire_schema = NULL,
-#'   preprocess = NULL,
-#'   postprocess = NULL,
-#'   rename_columns = NULL
-#' )
-#'
-#' # Calculate distance from both sides of each paired receptor.
-#' paired_config <- conf_tcrdist3(
-#'   chains = c("alpha", "beta"),
-#'   cdr3_cols = c(alpha = "junction_aa", beta = "junction_aa"),
-#'   v_gene_cols = c(alpha = "v_call", beta = "v_call"),
-#'   j_gene_cols = c(alpha = "j_call", beta = "j_call")
-#' )
-#' paired_tool <- tool_tcrdist3(paired_config)
-#' paired_run <- paired_tool$run(
-#'   paired_idata,
-#'   output_dir = file.path(tempdir(), "tcrdist3-paired")
-#' )
-#' @name tcrdist3
-#' @seealso [Tcrdist3Tool], [immundata::ImmunData],
+#' distance_file <- distance_run$results()$distances
+#' @name tool_tcrdist3
+#' @seealso [immundata::ImmunData],
 #'   [tcrdist3 input](https://tcrdist3.readthedocs.io/en/latest/inputs.html),
 #'   [tcrdist3 documentation](https://tcrdist3.readthedocs.io/en/latest/)
 #' @export
@@ -272,34 +245,14 @@ conf_tcrdist3 <- function(mode = c("cluster", "distance"),
 }
 
 
-#' @rdname tcrdist3
+#' @rdname tool_tcrdist3
 #' @export
 tool_tcrdist3 <- function(config = conf_tcrdist3()) {
   Tcrdist3Tool$new(config)
 }
 
 
-#' @rdname tcrdist3
-#'
-#' @description
-#' `Tcrdist3ToolConfig` stores validated tcrdist3 settings. It contains no
-#' receptor data and no results. Create it with [conf_tcrdist3()] and pass it
-#' to [tool_tcrdist3()]. The settings cannot be changed after creation; call
-#' [conf_tcrdist3()] again when different settings are needed.
-#'
-#' @field mode Whether the run produces clusters or distances only.
-#' @field organism Organism used for V-gene and J-gene interpretation.
-#' @field chains TCR chains included in the distance.
-#' @field cdr3_cols CDR3 amino-acid column for each selected chain.
-#' @field v_gene_cols V-gene column for each selected chain.
-#' @field j_gene_cols J-gene column for each selected chain.
-#' @field db_file tcrdist3 germline database.
-#' @field store_all_cdr Whether to keep separate CDR distance matrices.
-#' @field deduplicate Whether to calculate identical receptors once.
-#' @field cpus Number of CPUs used by tcrdist3.
-#' @field radius Clustering edge radius.
-#' @field python Python program used to run tcrdist3.
-#' @field run_args Additional advanced settings passed to `TCRrep`.
+#' @noRd
 Tcrdist3ToolConfig <- R6::R6Class(
   classname = "Tcrdist3ToolConfig",
   inherit = AbstractConfig,
@@ -365,72 +318,7 @@ Tcrdist3ToolConfig <- R6::R6Class(
 )
 
 
-#' Run tcrdist3 analyses
-#'
-#' `Tcrdist3Tool` connects a [Tcrdist3ToolConfig] to input data and the Python
-#' tcrdist3 runner. Create it with [tool_tcrdist3()], then call `$run()` for
-#' each input. The tool itself contains neither the input nor results; every
-#' run returns a separate [Tcrdist3Run].
-#'
-#' See [tcrdist3] for the complete workflow, input formats, single- versus
-#' paired-chain settings, and clustering method.
-#'
-#' @section Read-only fields:
-#'
-#' - **`name`:** Always `"tcrdist3"`.
-#' - **`config`:** The [Tcrdist3ToolConfig] used by default for new runs.
-#'
-#' @section Methods:
-#'
-#' - **`$help()`:** Print the commands needed to install tcrdist3. The commands
-#'   are not run automatically.
-#' - **`$check()`:** Check whether Python and tcrdist3 are ready. Return `TRUE`
-#'   when they are ready and `FALSE` otherwise.
-#' - **`$run(input, config = NULL, output_dir = NULL)`:** Analyze a text file or
-#'   [immundata::ImmunData] dataset and return a [Tcrdist3Run]. Pass `config` to
-#'   use different settings for this run only.
-#' - **`$citation()`:** Reserved for future citation support.
-#'
-#' @section Runs and results:
-#' `$run()` creates a new output directory and returns a [Tcrdist3Run]. Its
-#' `$path` gives the output directory, `$config` gives the settings used, and
-#' `$artifacts` gives the paths to files created by tcrdist3.
-#'
-#' Call `run$results()` to access the results. Both
-#' [Tcrdist3ClusterResults] and [Tcrdist3DistanceResults] provide `$mapping`
-#' and the `$distances` NumPy matrix path. Cluster results also provide
-#' `$clusters` and `$edges` tables. Their
-#' `$annotate(idata, ...)` joins `tcrdist_cluster_id` and
-#' `tcrdist_cluster_size`.
-#' For an `ImmunData` run, result `input_id` is the original
-#' `imd_receptor_id`, so one cluster is added to every row for that receptor.
-#' Additional arguments are passed
-#' to [immundata::annotate_receptors()].
-#'
-#' Distance results cannot add clusters to `ImmunData`. Run the analysis with
-#' `mode = "cluster"` before using `$annotate()`.
-#'
-#' @section Files created:
-#' `run$artifacts` contains:
-#'
-#' - **`input`:** Table sent to tcrdist3.
-#' - **`config`:** Settings sent to Python, stored as JSON.
-#' - **`clusters`:** Cluster mode only. One row per original TCR, with its
-#'   cluster number and cluster size.
-#' - **`mapping`:** Shows which identical receptors were calculated once.
-#' - **`edges`:** Cluster mode only. Receptor pairs with distance less than or
-#'   equal to `config$radius`.
-#' - **`distances`:** Pairwise distance matrix in NumPy `.npy` format.
-#' - **`stdout`, `stderr`:** Python messages and errors.
-#'
-#' @param config A [Tcrdist3ToolConfig] returned by [conf_tcrdist3()]. This
-#'   becomes the tool's default settings; `$run(config = ...)` can replace
-#'   it for one execution.
-#'
-#' @inherit tcrdist3 examples
-#'
-#' @seealso [tcrdist3], [conf_tcrdist3()], [tool_tcrdist3()]
-#'
+#' @noRd
 Tcrdist3Tool <- R6::R6Class(
   classname = "Tcrdist3Tool",
   inherit = AbstractTool,
@@ -438,7 +326,7 @@ Tcrdist3Tool <- R6::R6Class(
   public = list(
     #' @description
     #' Create a tcrdist3 tool. Users should call [tool_tcrdist3()] instead.
-    #' @param config A [Tcrdist3ToolConfig] returned by [conf_tcrdist3()].
+    #' @param config Settings returned by [conf_tcrdist3()].
     initialize = function(config = conf_tcrdist3()) {
       checkmate::assert_r6(config, classes = "Tcrdist3ToolConfig")
       super$initialize("tcrdist3", config, Tcrdist3Run)

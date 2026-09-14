@@ -1,10 +1,4 @@
-#' Completed tcrdist3 execution
-#'
-#' [Tcrdist3Tool]`$run()` returns a `Tcrdist3Run`. It records the settings and
-#' where the files were saved. `$results()` returns [Tcrdist3ClusterResults] or
-#' [Tcrdist3DistanceResults], depending on the selected mode.
-#'
-#' @keywords internal
+#' @noRd
 Tcrdist3Run <- R6::R6Class(
   classname = "Tcrdist3Run",
   inherit = ToolRun,
