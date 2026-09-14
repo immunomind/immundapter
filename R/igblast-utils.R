@@ -32,6 +32,225 @@ igblast_runtime_info <- function() {
 }
 
 
+igblast_find_bundled_c_region_db <- function(germline_db) {
+  germline_dbs <- tryCatch(
+    getExportedValue("igblastr", "list_germline_dbs")(
+      long.listing = TRUE
+    ),
+    error = function(error) NULL
+  )
+  germline_loci <- rownames(germline_dbs[[germline_db]])
+  if (is.null(germline_loci)) {
+    return("")
+  }
+
+  organism_aliases <- list(
+    human = c("human", "Homo_sapiens"),
+    mouse = c("mouse", "Mus_musculus"),
+    rabbit = c("rabbit", "Oryctolagus_cuniculus"),
+    rat = c("rat", "Rattus_norvegicus"),
+    rhesus_monkey = c("rhesus_monkey", "Macaca_mulatta")
+  )
+  organisms <- names(organism_aliases)[vapply(
+    organism_aliases,
+    function(aliases) any(vapply(
+      aliases,
+      grepl,
+      logical(1),
+      x = germline_db,
+      fixed = TRUE
+    )),
+    logical(1)
+  )]
+  if (length(organisms) != 1L) {
+    return("")
+  }
+
+  c_region_dbs <- tryCatch(
+    getExportedValue("igblastr", "list_c_region_dbs")(
+      builtin.only = TRUE,
+      long.listing = TRUE
+    ),
+    error = function(error) NULL
+  )
+  candidates <- c_region_dbs[grepl(
+    paste0(".", organisms, "."),
+    names(c_region_dbs),
+    fixed = TRUE
+  )]
+  if (length(candidates) == 0L) {
+    return("")
+  }
+
+  overlap <- vapply(
+    candidates,
+    function(database) length(intersect(names(database), germline_loci)),
+    integer(1)
+  )
+  if (max(overlap) == 0L || sum(overlap == max(overlap)) != 1L) {
+    return("")
+  }
+  names(candidates)[which.max(overlap)]
+}
+
+
+igblast_make_imgt_v_plan <- function(v_allele, reference) {
+  bases <- strsplit(reference, "", fixed = TRUE)[[1L]]
+  ungapped_to_gapped <- which(bases != ".")
+  runs <- rle(bases == ".")
+  run_ends <- cumsum(runs$lengths)
+  run_starts <- run_ends - runs$lengths + 1L
+  gap_runs <- which(runs$values)
+  gap_after <- vapply(
+    run_starts[gap_runs],
+    function(start) sum(bases[seq_len(start - 1L)] != "."),
+    integer(1L)
+  )
+  gap_lengths <- runs$lengths[gap_runs]
+
+  raw_v_end <- seq_along(ungapped_to_gapped)
+  gap_count <- findInterval(raw_v_end - 1L, gap_after)
+  patterns <- replacements <- rep(NA_character_, length(gap_lengths) + 1L)
+  for (count in unique(gap_count[gap_count > 0L])) {
+    chunks <- diff(c(0L, gap_after[seq_len(count)]))
+    patterns[[count + 1L]] <- paste0(
+      "^", paste0("(.{", chunks, "})", collapse = "")
+    )
+    replacements[[count + 1L]] <- paste0(
+      paste0("\\", seq_len(count), strrep(".", gap_lengths[seq_len(count)])),
+      collapse = ""
+    )
+  }
+
+  data.frame(
+    v_allele,
+    raw_v_end = as.integer(raw_v_end),
+    imgt_v_end = as.integer(ungapped_to_gapped),
+    pattern = patterns[gap_count + 1L],
+    replacement = replacements[gap_count + 1L]
+  )
+}
+
+
+igblast_make_imgt_v_plans <- function(path) {
+  records <- do.call(rbind, lapply(path, igblast_read_fasta))
+  fields <- strsplit(records$fasta_header, "|", fixed = TRUE)
+  v_alleles <- vapply(fields, function(parts) {
+    if (length(parts) < 2L || !nzchar(parts[[2L]])) {
+      rlang::abort("IMGT V FASTA headers must contain an allele in field 2.")
+    }
+    parts[[2L]]
+  }, character(1L))
+  sequence_counts <- vapply(
+    split(records$sequence, v_alleles),
+    function(sequence) length(unique(sequence)),
+    integer(1L)
+  )
+  if (any(sequence_counts > 1L)) {
+    rlang::abort("IMGT V FASTA alleles must not have conflicting sequences.")
+  }
+  keep <- !duplicated(v_alleles)
+  records <- records[keep, , drop = FALSE]
+  v_alleles <- v_alleles[keep]
+
+  do.call(rbind, Map(igblast_make_imgt_v_plan, v_alleles, records$sequence))
+}
+
+
+igblast_find_imgt_v_references <- function(germline_db) {
+  if (!startsWith(germline_db, "IMGT-")) {
+    return(character())
+  }
+
+  directory <- file.path(
+    tools::R_user_dir("igblastr", "cache"),
+    "germline_dbs", germline_db, "V_original_fasta"
+  )
+  paths <- if (dir.exists(directory)) {
+    list.files(directory, "[.]fasta$", full.names = TRUE)
+  } else {
+    character()
+  }
+  if (!length(paths)) {
+    rlang::abort(paste(
+      "The selected IMGT germline database does not contain its original",
+      "gapped V FASTA files. Reinstall it with",
+      "`igblastr::install_IMGT_germline_db()`."
+    ))
+  }
+  paths
+}
+
+
+igblast_normalize_imgt <- function(airr, plans) {
+  plan_table <- duckplyr::as_duckdb_tibble(plans, prudence = "stingy")
+  input <- airr |>
+    dplyr::mutate(
+      .v_allele = dd$trim(dd$regexp_extract(
+        v_call, "[^,|[:space:]][^,|]*", 0L
+      ))
+    )
+
+  trimmed_insertions <- input |>
+    dplyr::filter(dd$contains(germline_alignment, "-")) |>
+    dplyr::mutate(
+      .position = dd$unnest(dd$generate_series(
+        1L, as.integer(dd$length(germline_alignment))
+      )),
+      .germline_base = dd$substr(germline_alignment, .position, 1L),
+      .query_base = dplyr::if_else(
+        .germline_base == "-",
+        "",
+        dd$substr(sequence_alignment, .position, 1L)
+      )
+    ) |>
+    dplyr::arrange(sequence_id, .position) |>
+    dplyr::summarise(
+      .trimmed_sequence = dd$string_agg(.query_base, ""),
+      .by = sequence_id
+    )
+
+  input |>
+    dplyr::left_join(trimmed_insertions, by = "sequence_id") |>
+    dplyr::mutate(
+      .trimmed_sequence = dplyr::coalesce(
+        .trimmed_sequence, sequence_alignment
+      )
+    ) |>
+    dplyr::left_join(
+      plan_table,
+      by = c(".v_allele" = "v_allele", "v_germline_end" = "raw_v_end"),
+      copy = TRUE
+    ) |>
+    dplyr::mutate(
+      .normalized_sequence = dd$concat(
+        dd$rpad("", as.integer(v_germline_start - 1L), "."),
+        .trimmed_sequence
+      ),
+      .normalized_sequence = dplyr::if_else(
+        is.na(pattern),
+        .normalized_sequence,
+        dd$regexp_replace(.normalized_sequence, pattern, replacement)
+      ),
+      sequence_alignment = dplyr::if_else(
+        is.na(imgt_v_end), sequence_alignment, .normalized_sequence
+      ),
+      v_germline_start = dplyr::if_else(
+        is.na(imgt_v_end), as.integer(v_germline_start), 1L
+      ),
+      v_germline_end = dplyr::coalesce(
+        imgt_v_end, as.integer(v_germline_end)
+      ),
+      j_germline_start = as.integer(j_germline_start),
+      j_germline_end = as.integer(j_germline_end)
+    ) |>
+    dplyr::select(-dplyr::all_of(c(
+      ".v_allele", ".trimmed_sequence", ".normalized_sequence", "imgt_v_end",
+      "pattern", "replacement"
+    )))
+}
+
+
 igblast_prepare_immundata <- function(idata, sequence_col) {
   chain_col <- immundata::imd_schema("chain")
   required <- c(chain_col, sequence_col)
@@ -50,7 +269,7 @@ igblast_prepare_immundata <- function(idata, sequence_col) {
   chains <- inputs |>
     dplyr::filter(!is.na(sequence)) |>
     dplyr::filter(sequence != "") |>
-    dplyr::mutate(sequence = toupper(sequence))
+    dplyr::mutate(sequence = dd$upper(sequence))
 
   queries <- chains |>
     dplyr::select(sequence) |>
@@ -88,37 +307,9 @@ igblast_prepare_immundata <- function(idata, sequence_col) {
     ) |>
     dplyr::distinct()
 
-  input_status <- inputs |>
-    dplyr::mutate(
-      normalized_sequence = toupper(sequence),
-      submission_status = dplyr::case_when(
-        is.na(sequence) ~ "excluded_missing_sequence",
-        sequence == "" ~ "excluded_empty_sequence",
-        TRUE ~ "submitted"
-      ),
-      submission_reason = dplyr::case_when(
-        is.na(sequence) ~ "missing_sequence",
-        sequence == "" ~ "empty_sequence",
-        TRUE ~ NA_character_
-      )
-    ) |>
-    dplyr::left_join(
-      lookup |>
-        dplyr::rename(normalized_sequence = sequence),
-      by = "normalized_sequence"
-    ) |>
-    dplyr::transmute(
-      input_id = !!rlang::sym(chain_col),
-      input_id_type = "imd_chain_id",
-      igblast_query_id = !!rlang::sym("igblast_query_id"),
-      submission_status = !!rlang::sym("submission_status"),
-      submission_reason = !!rlang::sym("submission_reason")
-    )
-
   list(
     queries = queries,
-    mapping = mapping,
-    input_status = input_status
+    mapping = mapping
   )
 }
 
@@ -194,7 +385,7 @@ igblast_read_fasta <- function(path) {
 igblast_prepare_fasta <- function(path) {
   records <- igblast_read_fasta(path) |>
     duckplyr::as_duckdb_tibble() |>
-    dplyr::mutate(sequence = toupper(sequence))
+    dplyr::mutate(sequence = dd$upper(sequence))
 
   queries <- records |>
     dplyr::transmute(
@@ -215,22 +406,11 @@ igblast_prepare_fasta <- function(path) {
       "fasta_id",
       "fasta_header",
       "igblast_query_id"
-    ))) |>
-    dplyr::distinct()
-
-  input_status <- records |>
-    dplyr::transmute(
-      input_id = !!rlang::sym("fasta_id"),
-      input_id_type = "fasta_id",
-      igblast_query_id = !!rlang::sym("fasta_id"),
-      submission_status = "submitted",
-      submission_reason = NA_character_
-    )
+    )))
 
   list(
     queries = queries,
-    mapping = mapping,
-    input_status = input_status
+    mapping = mapping
   )
 }
 
@@ -339,27 +519,10 @@ igblast_prepare_fasta_annotations <- function(fasta_path, annotations_path) {
 igblast_merge_annotations <- function(
   airr,
   annotations,
-  annotation_id_col,
-  query_status
+  annotation_id_col
 ) {
-  status <- query_status |>
-    dplyr::select(dplyr::all_of(c(
-      "igblast_query_id",
-      "submission_status",
-      "result_status",
-      "reason"
-    ))) |>
-    dplyr::rename(
-      sequence_id = dplyr::all_of("igblast_query_id")
-    )
-  airr <- status |>
-    dplyr::left_join(airr, by = "sequence_id")
-
   airr_columns <- colnames(airr)
   annotation_columns <- colnames(annotations)
-  if (!"sequence_id" %in% airr_columns) {
-    rlang::abort("IgBLAST AIRR output is missing `sequence_id`.")
-  }
 
   semantic_replacements <- c(
     chain = "locus",
@@ -416,7 +579,7 @@ igblast_merge_annotations <- function(
 }
 
 
-igblast_validate_airr <- function(airr, submitted_queries) {
+igblast_validate_airr <- function(airr, queries) {
   if (!"sequence_id" %in% colnames(airr)) {
     rlang::abort("IgBLAST AIRR output is missing `sequence_id`.")
   }
@@ -448,99 +611,25 @@ igblast_validate_airr <- function(airr, submitted_queries) {
     ))
   }
 
-  submitted_ids <- duckplyr::as_duckdb_tibble(data.frame(
-    sequence_id = submitted_queries$igblast_query_id,
+  input_ids <- duckplyr::as_duckdb_tibble(data.frame(
+    sequence_id = queries$igblast_query_id,
     stringsAsFactors = FALSE
   ))
   unknown_ids <- result_ids |>
-    dplyr::anti_join(submitted_ids, by = "sequence_id") |>
+    dplyr::anti_join(input_ids, by = "sequence_id") |>
     dplyr::collect() |>
     as.data.frame()
   if (nrow(unknown_ids) > 0L) {
     rlang::abort(sprintf(
       paste(
-        "IgBLAST AIRR output contains `sequence_id` values that were not",
-        "submitted: %s."
+        "IgBLAST AIRR output contains `sequence_id` values absent from",
+        "the IgBLAST input: %s."
       ),
       paste(utils::head(unknown_ids$sequence_id, 10L), collapse = ", ")
     ))
   }
 
-  assignments <- result_ids
-  if ("v_call" %in% colnames(airr)) {
-    assignments <- assignments |>
-      dplyr::left_join(
-        airr |>
-          dplyr::select(dplyr::all_of(c("sequence_id", "v_call"))),
-        by = "sequence_id"
-      ) |>
-      dplyr::mutate(
-        has_v_call = !is.na(!!rlang::sym("v_call")) &
-          trimws(!!rlang::sym("v_call")) != ""
-      ) |>
-      dplyr::select(-dplyr::all_of("v_call"))
-  } else {
-    assignments <- assignments |>
-      dplyr::mutate(has_v_call = FALSE)
-  }
-  if ("j_call" %in% colnames(airr)) {
-    assignments <- assignments |>
-      dplyr::left_join(
-        airr |>
-          dplyr::select(dplyr::all_of(c("sequence_id", "j_call"))),
-        by = "sequence_id"
-      ) |>
-      dplyr::mutate(
-        has_j_call = !is.na(!!rlang::sym("j_call")) &
-          trimws(!!rlang::sym("j_call")) != ""
-      ) |>
-      dplyr::select(-dplyr::all_of("j_call"))
-  } else {
-    assignments <- assignments |>
-      dplyr::mutate(has_j_call = FALSE)
-  }
-
-  assignments |>
-    dplyr::transmute(
-      igblast_query_id = !!rlang::sym("sequence_id"),
-      airr_result_status = dplyr::if_else(
-        !!rlang::sym("has_v_call") & !!rlang::sym("has_j_call"),
-        "assigned",
-        "unassigned"
-      ),
-      airr_reason = dplyr::case_when(
-        !(!!rlang::sym("has_v_call")) &
-          !(!!rlang::sym("has_j_call")) ~
-          "missing_v_and_j_call",
-        !(!!rlang::sym("has_v_call")) ~ "missing_v_call",
-        !(!!rlang::sym("has_j_call")) ~ "missing_j_call",
-        TRUE ~ NA_character_
-      )
-    )
-}
-
-
-igblast_make_query_status <- function(input_status, airr_assignments) {
-  input_status |>
-    dplyr::left_join(airr_assignments, by = "igblast_query_id") |>
-    dplyr::transmute(
-      input_id = !!rlang::sym("input_id"),
-      input_id_type = !!rlang::sym("input_id_type"),
-      igblast_query_id = !!rlang::sym("igblast_query_id"),
-      submission_status = !!rlang::sym("submission_status"),
-      result_status = dplyr::case_when(
-        !!rlang::sym("submission_status") != "submitted" ~ "not_submitted",
-        is.na(!!rlang::sym("airr_result_status")) ~ "missing_output",
-        TRUE ~ !!rlang::sym("airr_result_status")
-      ),
-      reason = dplyr::case_when(
-        !!rlang::sym("submission_status") != "submitted" ~
-          !!rlang::sym("submission_reason"),
-        is.na(!!rlang::sym("airr_result_status")) ~
-          "absent_from_airr_output",
-        TRUE ~ !!rlang::sym("airr_reason")
-      )
-    )
+  invisible(NULL)
 }
 
 

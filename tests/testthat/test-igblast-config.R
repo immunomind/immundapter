@@ -53,7 +53,7 @@ test_that("IgBLAST help uses igblastr and pak without installing", {
   expect_match(output, "igblastr::install_igblast")
   expect_match(output, "igblastr::install_IMGT_germline_db")
   expect_match(output, "igblastr::use_germline_db")
-  expect_match(output, "C-region database is optional")
+  expect_match(output, "C-region database is selected automatically")
 })
 
 test_that("IgBLAST check reports a missing package without installing it", {

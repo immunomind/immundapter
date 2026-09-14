@@ -36,7 +36,7 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
   expect_equal(run$config$num_threads, 3L)
   expect_setequal(
     names(run$artifacts),
-    c("input", "config", "mapping", "query_status", "airr")
+    c("input", "config", "mapping", "airr")
   )
   expect_true(all(vapply(
     run$artifacts,
@@ -67,13 +67,8 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
     "igblast 1.22.0, mock build"
   )
   expect_equal(manifest$runtime$igblast_root, "/mock/igblast")
-  expect_equal(manifest$number_original_inputs, 3L)
-  expect_equal(manifest$number_submitted_inputs, 2L)
-  expect_equal(manifest$number_unique_submitted_sequences, 1L)
-  expect_equal(manifest$result_status_counts$assigned, 2L)
-  expect_equal(manifest$result_status_counts$unassigned, 0L)
-  expect_equal(manifest$result_status_counts$missing_output, 0L)
-  expect_equal(manifest$result_status_counts$not_submitted, 1L)
+  expect_equal(manifest$number_input_sequences, 2L)
+  expect_equal(manifest$number_unique_sequences, 1L)
   expect_equal(manifest$effective_args$num_threads, 3L)
   expect_equal(manifest$effective_args$num_alignments_V, 1L)
   expect_false(any(c("query", "out") %in% names(manifest$effective_args)))
@@ -83,7 +78,6 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
   expect_identical(results$run, run)
   expect_s3_class(results$airr, "duckplyr_df")
   expect_s3_class(results$mapping, "duckplyr_df")
-  expect_s3_class(results$query_status, "duckplyr_df")
   expect_identical(results$raw_output, run$artifacts$airr)
 
   airr <- results$airr |>
@@ -98,40 +92,6 @@ test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
     as.data.frame()
   expect_equal(nrow(mapping), 2L)
   expect_setequal(mapping$imd_chain_id, c("chain-1", "chain-2"))
-
-  query_status <- results$query_status |>
-    dplyr::collect() |>
-    as.data.frame()
-  expect_identical(
-    colnames(query_status),
-    c(
-      "input_id",
-      "input_id_type",
-      "igblast_query_id",
-      "submission_status",
-      "result_status",
-      "reason"
-    )
-  )
-  expect_equal(nrow(query_status), 3L)
-  expect_true(all(
-    query_status$result_status[
-      query_status$input_id %in% c("chain-1", "chain-2")
-    ] == "assigned"
-  ))
-  expect_equal(
-    query_status$result_status[query_status$input_id == "chain-3"],
-    "not_submitted"
-  )
-  expect_equal(
-    query_status$reason[query_status$input_id == "chain-3"],
-    "missing_sequence"
-  )
-  expect_error(
-    results$query_status <- NULL,
-    "`query_status` is read-only",
-    fixed = TRUE
-  )
 
   annotated <- results$annotate(idata)
   annotated_alignments <- annotated$annotations |>
@@ -377,7 +337,7 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
   expect_equal(run$input$type, "files")
   expect_setequal(
     names(run$artifacts),
-    c("input", "config", "mapping", "query_status", "airr", "final")
+    c("input", "config", "mapping", "airr", "final")
   )
   manifest <- jsonlite::read_json(
     run$artifacts$config,
@@ -403,7 +363,6 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
   expect_equal(final$custom_metadata, c("heavy", "light"))
   expect_equal(final$locus, c("IGH", "IGK"))
   expect_equal(final$v_call, c("IGHV1-2*01", "IGKV1-5*01"))
-  expect_equal(final$result_status, c("assigned", "assigned"))
   expect_true(all(final$productive))
   expect_equal(final$old_chain, c("IGH", "IGK"))
   expect_equal(final$old_v_gene, c("OLD_IGHV", "OLD_IGKV"))
@@ -544,4 +503,123 @@ test_that("IgBLAST runs the human TCR fixture with igblastr", {
       fasta_airr$sequence_id
     )]
   )
+})
+
+test_that("IgBLAST normalization matches Change-O 1.3.5", {
+  input <- data.frame(
+    fixture_case = c("ordinary", "partial_v", "lambda_insertion"),
+    sequence_id = c(
+      "T4_AAACCCATCCCACCTA-1_contig_2",
+      "T6_ACAAGACAGGTGTATT-1_contig_1",
+      "T4_CATCTTCAGACAGAAC-1_contig_2"
+    ),
+    locus = c("IGH", "IGK", "IGL"),
+    v_call = c("IGHV3-15*01", "IGKV3-15*01", "IGLV2-8*01"),
+    j_call = c("IGHJ4*02", "IGKJ2*01", "IGLJ2*01,IGLJ2A*01,IGLJ3*01"),
+    sequence_alignment = c(
+      paste0(
+        "GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTAAAGCCTGGGGGGTCCCTTAGACTCTCCTGTGCAGCCTCTGGATTCACTTTCAGTAACGCCTGGATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTGGCCGTATTAAAAGCAAAACTGATGGTGGGACAACAGACTACGCTGCACCCGTGAAAGGCAGATTCACCATCTCAAGAGATGATTCAAAAAACACGCTGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACAGCCGTGTATTACTGTACCACAGATCCGAGTGGTTATTACGCAGAACTGGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG"
+      ),
+      paste0(
+        "GTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCTTGTAGGGCCAGTCAGAGTGTTAACACCAACTTAGCCTGGTACCAGCAAAAACCTGGCCAGGCTCCCAGGCTCCTCATCTCTGGTGCATCAATCAGGGCCACTGGTATCCCAGCCAGATTCAGTGGCAGTGGGTCTGGGACAGACTTCGCTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAAGTGGCCCCCGTACACTTTTGGCCAGGGGACCAAGCTGGAGATCAAAC"
+      ),
+      paste0(
+        "CAGTCTGCCCTGACTCAGCCTCCCTCCGCGTCCGGGTCTCCTGGACAGTCAGTCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAAGCGGCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGCTCCAAGTCTGGCAACACGGCCTCCCTGACCGTCTCTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCAGCTCATATGCAGGCAGCAACAATTTTGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG"
+      )
+    ),
+    germline_alignment = c(
+      paste0(
+        "GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTAAAGCCTGGGGGGTCCCTTAGACTCTCCTGTGCAGCCTCTGGATTCACTTTCAGTAACGCCTGGATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTGGCCGTATTAAAAGCAAAACTGATGGTGGGACAACAGACTACGCTGCACCCGTGAAAGGCAGATTCACCATCTCAAGAGATGATTCAAAAAACACGCTGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACAGCCGTGTATTACTGTACCACAGANNNNAGTGGTTATTACNNNNNNNNNGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG"
+      ),
+      paste0(
+        "GTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCCTGCAGGGCCAGTCAGAGTGTTAGCAGCAACTTAGCCTGGTACCAGCAGAAACCTGGCCAGGCTCCCAGGCTCCTCATCTATGGTGCATCCACCAGGGCCACTGGTATCCCAGCCAGGTTCAGTGGCAGTGGGTCTGGGACAGAGTTCACTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAACTGGCCTCCGTACACTTTTGGCCAGGGGACCAAGCTGGAGATCAAAC"
+      ),
+      paste0(
+        "CAGTCTGCCCTGACTCAGCCTCCCTCCGCGTCCGGGTCTCCTGGACAGTCAGTCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAA---GCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGCTCCAAGTCTGGCAACACGGCCTCCCTGACCGTCTCTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCAGCTCATATGCAGGCAGCAACAATTTTGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG"
+      )
+    ),
+    v_germline_start = c(1L, 7L, 1L),
+    v_germline_end = c(302L, 287L, 296L),
+    j_germline_start = c(9L, 2L, 1L),
+    j_germline_end = c(48L, 39L, 38L)
+  )
+
+  expected <- data.frame(
+    fixture_case = input$fixture_case,
+    sequence_id = input$sequence_id,
+    sequence_alignment = c(
+      paste0(
+        "GAGGTGCAGCTGGTGGAGTCTGGGGGA...GGCTTGGTAAAGCCTGGGGGGTCCCTTAGACTCTCCTGTGCAGCCTCTGGATTCACTTTC............AGTAACGCCTGGATGAGCTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTGGCCGTATTAAAAGCAAAACTGATGGTGGGACAACAGACTACGCTGCACCCGTGAAA...GGCAGATTCACCATCTCAAGAGATGATTCAAAAAACACGCTGTATCTGCAAATGAACAGCCTGAAAACCGAGGACACAGCCGTGTATTACTGTACCACAGATCCGAGTGGTTATTACGCAGAACTGGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG"
+      ),
+      paste0(
+        "......GTGATGACGCAGTCTCCAGCCACCCTGTCTGTGTCTCCAGGGGAAAGAGCCACCCTCTCTTGTAGGGCCAGTCAGAGTGTT..................AACACCAACTTAGCCTGGTACCAGCAAAAACCTGGCCAGGCTCCCAGGCTCCTCATCTCTGGTGCA.....................TCAATCAGGGCCACTGGTATCCCA...GCCAGATTCAGTGGCAGTGGG......TCTGGGACAGACTTCGCTCTCACCATCAGCAGCCTGCAGTCTGAAGATTTTGCAGTTTATTACTGTCAGCAGTATAATAAGTGGCCCCCGTACACTTTTGGCCAGGGGACCAAGCTGGAGATCAAAC"
+      ),
+      paste0(
+        "CAGTCTGCCCTGACTCAGCCTCCCTCC...GCGTCCGGGTCTCCTGGACAGTCAGTCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGT.........GGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTC.....................AGTAAGCGGCCCTCAGGGGTCCCT...GATCGCTTCTCTGGCTCCAAG......TCTGGCAACACGGCCTCCCTGACCGTCTCTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCAGCTCATATGCAGGCAGCAACAATTTTGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG"
+      )
+    ),
+    v_germline_start = c(1L, 1L, 1L),
+    v_germline_end = c(320L, 335L, 338L),
+    j_germline_start = input$j_germline_start,
+    j_germline_end = input$j_germline_end
+  )
+
+  fasta <- withr::local_tempfile(fileext = ".fasta")
+  writeLines(c(
+    ">X92216|IGHV3-15*01|Homo sapiens|F|V-REGION|162..463|302 nt|1| | | | |302+18=320| | |",
+    "gaggtgcagctggtggagtctggggga...ggcttggtaaagcctggggggtcccttagactctcctgtgcagcctctgg",
+    "attcactttc............agtaacgcctggatgagctgggtccgccaggctccagggaaggggctggagtgggttg",
+    "gccgtattaaaagcaaaactgatggtgggacaacagactacgctgcacccgtgaaa...ggcagattcaccatctcaaga",
+    "gatgattcaaaaaacacgctgtatctgcaaatgaacagcctgaaaaccgaggacacagccgtgtattactgtaccacaga",
+    ">IMGT000312|IGLV2-8*01|Homo sapiens|F|V-REGION|813705..814001|297 nt|1| | || |297+42=339| | |",
+    "cagtctgccctgactcagcctccctcc...gcgtccgggtctcctggacagtcagtcaccatctcctgcactggaaccag",
+    "cagtgacgttggt.........ggttataactatgtctcctggtaccaacagcacccaggcaaagcccccaaactcatga",
+    "tttatgaggtc.....................agtaagcggccctcaggggtccct...gatcgcttctctggctccaag",
+    "......tctggcaacacggcctccctgaccgtctctgggctccaggctgaggatgaggctgattattactgcagctcata",
+    "tgcaggcagcaacaatttc",
+    ">M23090|IGKV3-15*01|Homo sapiens|F|V-REGION|905..1191|287 nt|1| | | | |287+48=335| | |",
+    "gaaatagtgatgacgcagtctccagccaccctgtctgtgtctccaggggaaagagccaccctctcctgcagggccagtca",
+    "gagtgtt..................agcagcaacttagcctggtaccagcagaaacctggccaggctcccaggctcctca",
+    "tctatggtgca.....................tccaccagggccactggtatccca...gccaggttcagtggcagtggg",
+    "......tctgggacagagttcactctcaccatcagcagcctgcagtctgaagattttgcagtttattactgtcagcagta",
+    "taataactggcctcc"
+  ), fasta)
+
+  query <- withr::local_tempfile(fileext = ".fasta")
+  writeLines(as.vector(rbind(
+    paste0(">", input$sequence_id),
+    input$sequence_alignment
+  )), query)
+  testthat::local_mocked_bindings(
+    igblast_runtime_info = igblast_test_runtime_info,
+    igblast_find_imgt_v_references = function(germline_db) fasta,
+    igblast_call = function(arguments) {
+      write_igblast_test_airr(arguments, input)
+    },
+    .package = "immundapter"
+  )
+
+  run <- tool_igblast()$run(
+    query,
+    output_dir = withr::local_tempdir()
+  )
+  normalized <- run$results()$airr
+  expect_s3_class(normalized, "duckplyr_df")
+
+  columns <- c(
+    "fixture_case", "sequence_id", "sequence_alignment",
+    "v_germline_start", "v_germline_end",
+    "j_germline_start", "j_germline_end"
+  )
+  actual <- normalized |>
+    dplyr::select(dplyr::all_of(columns)) |>
+    dplyr::arrange(fixture_case) |>
+    dplyr::collect() |>
+    as.data.frame()
+  expected <- expected[order(expected$fixture_case), columns]
+  rownames(expected) <- NULL
+
+  expect_equal(actual, expected)
+  expect_equal(nrow(actual), nrow(input))
+  expect_equal(length(unique(actual$sequence_id)), nrow(actual))
 })

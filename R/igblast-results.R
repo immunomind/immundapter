@@ -1,47 +1,14 @@
-#' Parsed IgBLAST results
-#'
-#' `IgblastResults` provides the complete AIRR output and the files created by
-#' IgBLAST. `$airr`, `$mapping`, `$query_status`, and `$final` stay on disk
-#' until you use `dplyr::collect()`.
-#'
-#' @section Output depends on the input:
-#' All runs provide `$airr`, `$mapping`, `$query_status`, and `$raw_output`.
-#' Runs made from `ImmunData` can use
-#' `results$annotate(idata, columns = ...)` to add AIRR fields to the original
-#' chains. By default, it adds `sequence_alignment` and `germline_alignment`.
-#'
-#' Runs made from a FASTA file cannot annotate `ImmunData` directly. Runs made
-#' from a named FASTA-and-annotations pair also provide `$final` and
-#' `$final_output`, containing the source table joined with AIRR results.
-#'
-#' Additional `$annotate()` arguments, including `conflicts`, are passed to
-#' [immundata::annotate_chains()].
-#'
-#' @field airr Read-only AIRR result table.
-#' @field mapping Read-only table showing which input chain or FASTA sequence
-#'   produced each IgBLAST `sequence_id`.
-#' @field query_status Read-only table accounting for every original input and
-#'   whether it was submitted, assigned, unassigned, or missing from output.
-#' @field raw_output Read-only file path to the AIRR TSV output.
-#' @field final Read-only table containing the original annotation columns and
-#'   AIRR results for paired FASTA and annotation input.
-#' @field final_output Read-only file path to the final TSV table for paired
-#'   input.
-#'
-#' @keywords internal
+#' @noRd
 IgblastResults <- R6::R6Class(
   classname = "IgblastResults",
   inherit = ToolResults,
   cloneable = FALSE,
   active = list(
     airr = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`airr` is read-only.")
-      }
-      path <- private$.run$artifacts$airr
-      checkmate::assert_file_exists(path)
-      duckplyr::read_csv_duckdb(
-        path,
+      private$artifact(
+        "airr",
+        value,
+        type = "csv",
         options = list(
           delim = "\t",
           header = TRUE,
@@ -50,69 +17,49 @@ IgblastResults <- R6::R6Class(
       )
     },
     mapping = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`mapping` is read-only.")
-      }
-      path <- private$.run$artifacts$mapping
-      checkmate::assert_file_exists(path)
-      duckplyr::read_parquet_duckdb(path)
-    },
-    query_status = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`query_status` is read-only.")
-      }
-      path <- private$.run$artifacts$query_status
-      checkmate::assert_file_exists(path)
-      duckplyr::read_parquet_duckdb(path)
+      private$artifact("mapping", value, type = "parquet")
     },
     raw_output = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`raw_output` is read-only.")
-      }
-      path <- private$.run$artifacts$airr
-      checkmate::assert_file_exists(path)
-      path
+      private$artifact(
+        "airr",
+        value,
+        type = "path",
+        field = "raw_output"
+      )
     },
     final = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`final` is read-only.")
-      }
-      path <- private$.run$artifacts$final
-      if (is.null(path)) {
-        rlang::abort(paste(
-          "No final merged table is available.",
-          "Run IgBLAST with named `fasta` and `annotations` input files."
-        ))
-      }
-      checkmate::assert_file_exists(path)
-      duckplyr::read_csv_duckdb(
-        path,
+      private$artifact(
+        "final",
+        value,
+        type = "csv",
         options = list(
           delim = "\t",
           header = TRUE,
           types = list(c(sequence_id = "VARCHAR"))
+        ),
+        missing_message = paste(
+          "No final merged table is available.",
+          "Run IgBLAST with named `fasta` and `annotations` input files."
         )
       )
     },
     final_output = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`final_output` is read-only.")
-      }
-      path <- private$.run$artifacts$final
-      if (is.null(path)) {
-        rlang::abort(paste(
+      private$artifact(
+        "final",
+        value,
+        type = "path",
+        missing_message = paste(
           "No final merged table is available.",
           "Run IgBLAST with named `fasta` and `annotations` input files."
-        ))
-      }
-      checkmate::assert_file_exists(path)
-      path
+        ),
+        field = "final_output"
+      )
     }
   ),
   private = list(
     annotate_impl = function(
       idata,
-      columns = c("sequence_alignment", "germline_alignment"),
+      columns = c("sequence_alignment", "germline_alignment", "c_call"),
       ...
     ) {
       checkmate::assert_character(
@@ -138,6 +85,10 @@ IgblastResults <- R6::R6Class(
       }
 
       airr <- self$airr
+      if ("c_call" %in% columns && !"c_call" %in% colnames(airr)) {
+        airr <- airr |>
+          dplyr::mutate(c_call = NA_character_)
+      }
       missing <- setdiff(columns, colnames(airr))
       if (length(missing) > 0L) {
         rlang::abort(sprintf(

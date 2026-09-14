@@ -1,9 +1,4 @@
-#' Completed IgBLAST execution
-#'
-#' [IgblastTool]`$run()` returns an `IgblastRun`. It records the settings and
-#' where the files were saved. Call `$results()` to obtain [IgblastResults].
-#'
-#' @keywords internal
+#' @noRd
 IgblastRun <- R6::R6Class(
   classname = "IgblastRun",
   inherit = ToolRun,

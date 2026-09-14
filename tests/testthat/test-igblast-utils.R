@@ -19,7 +19,37 @@ test_that("IgBLAST prepares and deduplicates ImmunData chain sequences", {
   expect_equal(length(unique(mapping$igblast_query_id)), 1L)
 })
 
-test_that("IgBLAST retains missing and empty ImmunData input status", {
+test_that("IgBLAST prepares persisted duckplyr ImmunData sequences", {
+  input <- withr::local_tempfile(fileext = ".tsv")
+  utils::write.table(
+    data.frame(
+      imd_receptor_id = c("receptor-1", "receptor-2"),
+      imd_barcode = c("barcode-1", "barcode-2"),
+      imd_chain_id = c("chain-1", "chain-2"),
+      imd_n_chains = 1L,
+      sequence = c("acgt", "TGCA")
+    ),
+    input,
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+  )
+  annotations <- duckplyr::read_csv_duckdb(
+    input,
+    options = list(delim = "\t", header = TRUE)
+  )
+  idata <- immundata::ImmunData$new(
+    schema = "sequence",
+    annotations = annotations
+  )
+
+  prepared <- igblast_prepare_input(idata, "sequence")
+
+  expect_equal(prepared$queries$sequence, c("ACGT", "TGCA"))
+  expect_equal(nrow(dplyr::collect(prepared$mapping)), 2L)
+})
+
+test_that("IgBLAST removes missing and empty ImmunData sequences", {
   prepared <- igblast_prepare_input(
     make_igblast_test_immundata(
       sequence = c("ACGT", NA_character_, ""),
@@ -27,72 +57,12 @@ test_that("IgBLAST retains missing and empty ImmunData input status", {
     ),
     "sequence"
   )
-  input_status <- prepared$input_status |>
+  mapping <- prepared$mapping |>
     dplyr::collect() |>
     as.data.frame()
 
-  expect_equal(nrow(input_status), 3L)
-  expect_equal(
-    input_status$submission_status[
-      input_status$input_id == "chain-submitted"
-    ],
-    "submitted"
-  )
-  expect_equal(
-    input_status$submission_status[input_status$input_id == "chain-missing"],
-    "excluded_missing_sequence"
-  )
-  expect_equal(
-    input_status$submission_status[input_status$input_id == "chain-empty"],
-    "excluded_empty_sequence"
-  )
-  expect_true(is.na(
-    input_status$igblast_query_id[input_status$input_id == "chain-missing"]
-  ))
-  expect_true(is.na(
-    input_status$igblast_query_id[input_status$input_id == "chain-empty"]
-  ))
-})
-
-test_that("IgBLAST validates AIRR IDs and classifies every input", {
-  submitted <- igblast_test_submitted_queries()
-  airr <- duckplyr::as_duckdb_tibble(data.frame(
-    sequence_id = c("query-1", "query-2"),
-    v_call = c("TRBV1*01", "TRBV2*01"),
-    j_call = c("TRBJ1*01", NA_character_)
-  ))
-  assignments <- igblast_validate_airr(airr, submitted)
-  input_status <- duckplyr::as_duckdb_tibble(data.frame(
-    input_id = c("chain-1", "chain-2", "chain-3", "chain-4", "chain-5"),
-    input_id_type = "imd_chain_id",
-    igblast_query_id = c(
-      "query-1", "query-1", "query-2", "query-3", NA_character_
-    ),
-    submission_status = c(
-      "submitted", "submitted", "submitted", "submitted",
-      "excluded_empty_sequence"
-    ),
-    submission_reason = c(
-      NA_character_, NA_character_, NA_character_, NA_character_,
-      "empty_sequence"
-    )
-  ))
-
-  status <- igblast_make_query_status(input_status, assignments) |>
-    dplyr::collect() |>
-    as.data.frame()
-
-  expect_equal(
-    status$result_status,
-    c("assigned", "assigned", "unassigned", "missing_output", "not_submitted")
-  )
-  expect_equal(
-    status$reason,
-    c(
-      NA_character_, NA_character_, "missing_j_call",
-      "absent_from_airr_output", "empty_sequence"
-    )
-  )
+  expect_equal(prepared$queries$sequence, "ACGT")
+  expect_equal(mapping$imd_chain_id, "chain-submitted")
 })
 
 test_that("IgBLAST rejects unknown, duplicate, and malformed AIRR IDs", {
@@ -107,7 +77,7 @@ test_that("IgBLAST rejects unknown, duplicate, and malformed AIRR IDs", {
       )),
       submitted
     ),
-    "were not submitted: unknown",
+    "absent from the IgBLAST input: unknown",
     fixed = TRUE
   )
   expect_error(
@@ -154,26 +124,15 @@ test_that("IgBLAST paired merge preserves rows missing from AIRR output", {
     contig_id = c("query-1", "query-2"),
     barcode = c("cell-1", "cell-2")
   ))
-  query_status <- duckplyr::as_duckdb_tibble(data.frame(
-    input_id = c("query-1", "query-2"),
-    input_id_type = "fasta_id",
-    igblast_query_id = c("query-1", "query-2"),
-    submission_status = "submitted",
-    result_status = c("assigned", "missing_output"),
-    reason = c(NA_character_, "absent_from_airr_output")
-  ))
-
   final <- igblast_merge_annotations(
     airr,
     annotations,
-    "contig_id",
-    query_status
+    "contig_id"
   ) |>
     dplyr::collect() |>
     as.data.frame()
 
   expect_equal(nrow(final), 2L)
-  expect_equal(final$result_status, c("assigned", "missing_output"))
   expect_true(is.na(final$v_call[final$sequence_id == "query-2"]))
 })
 
@@ -361,4 +320,17 @@ test_that("IgBLAST fixture contains full human TRB nucleotide sequences", {
   expect_equal(nrow(fixture), 3L)
   expect_true(all(fixture$locus == "TRB"))
   expect_true(all(nchar(fixture$sequence) == 248L))
+})
+
+test_that("IMGT V lookup maps ungapped end-coordinate boundaries", {
+  plan <- igblast_make_imgt_v_plan("synthetic*01", "AA..CC...GG")
+
+  expect_equal(
+    plan$imgt_v_end[match(2:5, plan$raw_v_end)],
+    c(2L, 5L, 6L, 10L)
+  )
+  expect_equal(
+    is.na(plan$pattern[match(2:5, plan$raw_v_end)]),
+    c(TRUE, FALSE, FALSE, FALSE)
+  )
 })
