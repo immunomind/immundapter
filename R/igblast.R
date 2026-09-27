@@ -1,19 +1,30 @@
-#' @title Annotate B-cell and T-cell receptor sequences with IgBLAST
+#' @title Assign germline genes to raw receptor sequences with IgBLAST
 #'
 #' @description
 #'
 #' IgBLAST identifies the germline genes that most likely produced each immune
-#' receptor sequence. Use it to add V, D, J, and, when available, C gene
-#' calls to BCR or TCR nucleotide sequences. Results use standard AIRR column
-#' names.
+#' receptor sequence. It produces V, D, J, and, when available, C gene calls
+#' in an AIRR table that can be imported with [immundata::read_repertoires()].
 #'
 #' The usual workflow is:
 #'
 #' ```r
-#' tool <- tool_igblast()
-#' run <- tool$run(idata)
-#' results <- run$results()
-#' annotated_idata <- results$annotate(idata)
+#' run <- tool_igblast()$run(c(
+#'   fasta = "sequences.fasta",
+#'   annotations = "contig_annotations.csv"
+#' ))
+#' idata <- immundata::read_repertoires(
+#'   path = run$results()$final_output,
+#'   schema = immundata::make_receptor_schema(
+#'     features = c("v_call", "j_call", "junction_aa"),
+#'     chains = c("IGH", "IGK|IGL")
+#'   ),
+#'   barcode_col = "barcode",
+#'   locus_col = "locus",
+#'   umi_col = "umis",
+#'   preprocess = immundata::make_default_preprocessing("10x"),
+#'   rename_columns = NULL
+#' )
 #' ```
 #'
 #' @details
@@ -59,11 +70,8 @@
 #'
 #' @section Choose the input:
 #'
-#' `tool$run()` accepts three forms of input:
+#' `tool$run()` accepts two forms of input:
 #'
-#' * **An `ImmunData` dataset.** `sequence_col` selects the chain column that
-#'   contains the nucleotide sequence. The result can be added back to the same
-#'   dataset with `results$annotate(idata)`.
 #' * **A FASTA file.** Pass a path ending in `.fasta` or `.fasta.gz`. Use this
 #'   when no annotation table needs to be preserved.
 #' * **A FASTA file and its annotation table.** Pass
@@ -84,13 +92,12 @@
 #' The tables are disk-backed. Use `dplyr::collect()` only when you want to
 #' bring a table into R memory.
 #'
-#' With `ImmunData` input, `results$annotate(idata)` returns a new dataset. By
-#' default, it adds `sequence_alignment`, `germline_alignment`, and `c_call`.
-#' The original dataset is not changed.
-#'
 #' With paired FASTA and annotation input, `results$final` contains the source
 #' columns joined with all AIRR columns. `results$final_output` is the path to
-#' the same table as a TSV file.
+#' the same table as a TSV file. Pass this file to
+#' [immundata::read_repertoires()] to create an `ImmunData` dataset. Choose
+#' preprocessing that retains `sequence_alignment` when subsequent analyses
+#' need IMGT-gapped alignments and coordinates.
 #'
 #' @section IMGT gaps and coordinates:
 #'
@@ -118,16 +125,11 @@
 #'
 #' @section Input details:
 #'
-#' Missing or empty `ImmunData` sequences are skipped. Identical sequences are
-#' analysed once and then matched back to every original chain.
-#'
 #' FASTA names must be unique. In `>cell_1 description`, the name is `cell_1`.
 #' For paired input, the annotation table must contain a unique `contig_id` or
 #' `sequence_id` column whose values match the FASTA names. CSV, TSV, TXT, and
 #' gzip-compressed annotation files are accepted.
 #'
-#' @param sequence_col For `ImmunData` input, the chain column containing
-#'   ungapped nucleotide sequences. It is ignored for FASTA input.
 #' @param num_threads Number of computer threads available to IgBLAST. `NULL`
 #'   uses the IgBLAST default.
 #' @param run_args Additional named arguments passed through `...` in
@@ -153,48 +155,25 @@
 #'   igblastr::use_germline_db(sort(databases)[[length(databases)]])
 #' )
 #'
-#' config <- conf_igblast(sequence_col = "sequence")
+#' config <- conf_igblast()
 #' tool <- tool_igblast(config)
 #' stopifnot(tool$check())
 #'
 #' antitnf_dir <- system.file("extdata", "antitnf", package = "immundapter")
-#' antitnf_airr <- file.path(antitnf_dir, "igblast_airr.tsv.gz")
 #' antitnf_fasta <- file.path(antitnf_dir, "bcr_contigs.fasta.gz")
 #' antitnf_annotations <- file.path(
 #'   antitnf_dir,
 #'   "contig_annotations.csv.gz"
 #' )
 #'
-#' # Read an AIRR file as ImmunData.
-#' bcr_schema <- immundata::make_receptor_schema(
-#'   features = c("sequence", "v_call", "j_call", "junction_aa"),
-#'   chains = c("IGH", "IGK|IGL")
-#' )
-#' idata <- immundata::read_repertoires(
-#'   path = antitnf_airr,
-#'   schema = bcr_schema,
-#'   barcode_col = "barcode",
-#'   locus_col = "locus",
-#'   umi_col = "umis",
-#'   preprocess = immundata::make_default_preprocessing("airr"),
-#'   postprocess = NULL,
-#'   rename_columns = NULL,
-#'   repertoire_schema = NULL,
-#'   output_folder = tempfile("antitnf-immundata-")
-#' )
-#' # Re-annotate its nucleotide sequences with the selected germline database.
-#' idata_run <- tool$run(idata, output_dir = tempfile("igblast-immundata-"))
-#' idata_results <- idata_run$results()
-#' aligned_idata <- idata_results$annotate(idata, conflicts = "replace")
-#'
-#' # Alternatively, analyse a FASTA file directly.
+#' # Analyse a FASTA file directly.
 #' fasta_run <- tool$run(
 #'   antitnf_fasta,
 #'   output_dir = tempfile("igblast-fasta-")
 #' )
 #' fasta_airr <- dplyr::collect(fasta_run$results()$airr)
 #'
-#' # Or preserve the matching 10x annotation table.
+#' # Preserve the matching 10x annotation table and import the AIRR result.
 #' paired_run <- tool$run(
 #'   c(
 #'     fasta = antitnf_fasta,
@@ -202,16 +181,26 @@
 #'   ),
 #'   output_dir = tempfile("igblast-10x-")
 #' )
-#' paired_final <- dplyr::collect(paired_run$results()$final)
+#' idata <- immundata::read_repertoires(
+#'   path = paired_run$results()$final_output,
+#'   schema = immundata::make_receptor_schema(
+#'     features = c("v_call", "j_call", "junction_aa"),
+#'     chains = c("IGH", "IGK|IGL")
+#'   ),
+#'   barcode_col = "barcode",
+#'   locus_col = "locus",
+#'   umi_col = "umis",
+#'   preprocess = immundata::make_default_preprocessing("10x"),
+#'   rename_columns = NULL,
+#'   output_folder = tempfile("antitnf-immundata-")
+#' )
 #' @name tool_igblast
 #' @seealso
 #'   [igblastr overview](https://bioconductor.org/packages/release/bioc/vignettes/igblastr/inst/doc/igblastr_overview.html)
 #' @export
-conf_igblast <- function(sequence_col = "sequence",
-                         num_threads = NULL,
+conf_igblast <- function(num_threads = NULL,
                          run_args = list()) {
   IgblastToolConfig$new(list(
-    sequence_col = sequence_col,
     num_threads = num_threads,
     run_args = run_args
   ))
@@ -231,7 +220,6 @@ IgblastToolConfig <- R6::R6Class(
   inherit = AbstractConfig,
   cloneable = FALSE,
   public = list(
-    sequence_col = NULL,
     num_threads = NULL,
     run_args = NULL,
     #' @description
@@ -239,7 +227,6 @@ IgblastToolConfig <- R6::R6Class(
     #' [conf_igblast()] instead.
     #' @param values A named list of IgBLAST settings.
     initialize = function(values) {
-      checkmate::assert_string(values$sequence_col)
       checkmate::assert_int(values$num_threads, lower = 1L, null.ok = TRUE)
       checkmate::assert_list(values$run_args)
 
@@ -366,10 +353,6 @@ IgblastTool <- R6::R6Class(
       rlang::abort("IgBLAST `citation()` is not implemented yet.")
     },
     validate_input_impl = function(input, config) {
-      if (inherits(input, "ImmunData")) {
-        checkmate::assert_r6(input, classes = "ImmunData")
-        return(input)
-      }
       checkmate::assert_character(
         input,
         min.len = 1L,
@@ -441,7 +424,7 @@ IgblastTool <- R6::R6Class(
         }
       }
 
-      prepared <- igblast_prepare_input(input, config$sequence_col)
+      prepared <- igblast_prepare_input(input)
       input_path <- fs::path(run_dir, "igblast-input.fasta")
       mapping_path <- fs::path(run_dir, "igblast-query-map.parquet")
       output_path <- fs::path(run_dir, "igblast-airr.tsv")
@@ -541,14 +524,11 @@ IgblastTool <- R6::R6Class(
 
       jsonlite::write_json(
         list(
-          input_type = if (inherits(input, "ImmunData")) {
-            "immundata"
-          } else if (length(input) == 2L) {
+          input_type = if (length(input) == 2L) {
             "fasta_annotations"
           } else {
             "fasta"
           },
-          sequence_col = config$sequence_col,
           num_threads = config$num_threads,
           fixed = fixed[setdiff(names(fixed), c("query", "out"))],
           run_args = config$run_args,

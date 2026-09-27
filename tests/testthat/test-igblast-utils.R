@@ -1,70 +1,3 @@
-test_that("IgBLAST prepares and deduplicates ImmunData chain sequences", {
-  idata <- make_igblast_test_immundata()
-  prepared <- igblast_prepare_input(idata, "sequence")
-
-  expect_equal(
-    prepared$queries,
-    data.frame(
-      igblast_query_id = "igblast_query_000000001",
-      sequence = "ACGTRYSWKMBDHVN"
-    )
-  )
-  expect_s3_class(prepared$mapping, "duckplyr_df")
-
-  mapping <- prepared$mapping |>
-    dplyr::collect() |>
-    as.data.frame()
-  expect_equal(nrow(mapping), 2L)
-  expect_setequal(mapping$imd_chain_id, c("chain-1", "chain-2"))
-  expect_equal(length(unique(mapping$igblast_query_id)), 1L)
-})
-
-test_that("IgBLAST prepares persisted duckplyr ImmunData sequences", {
-  input <- withr::local_tempfile(fileext = ".tsv")
-  utils::write.table(
-    data.frame(
-      imd_receptor_id = c("receptor-1", "receptor-2"),
-      imd_barcode = c("barcode-1", "barcode-2"),
-      imd_chain_id = c("chain-1", "chain-2"),
-      imd_n_chains = 1L,
-      sequence = c("acgt", "TGCA")
-    ),
-    input,
-    sep = "\t",
-    quote = FALSE,
-    row.names = FALSE
-  )
-  annotations <- duckplyr::read_csv_duckdb(
-    input,
-    options = list(delim = "\t", header = TRUE)
-  )
-  idata <- immundata::ImmunData$new(
-    schema = "sequence",
-    annotations = annotations
-  )
-
-  prepared <- igblast_prepare_input(idata, "sequence")
-
-  expect_equal(prepared$queries$sequence, c("ACGT", "TGCA"))
-  expect_equal(nrow(dplyr::collect(prepared$mapping)), 2L)
-})
-
-test_that("IgBLAST removes missing and empty ImmunData sequences", {
-  prepared <- igblast_prepare_input(
-    make_igblast_test_immundata(
-      sequence = c("ACGT", NA_character_, ""),
-      chain_id = c("chain-submitted", "chain-missing", "chain-empty")
-    ),
-    "sequence"
-  )
-  mapping <- prepared$mapping |>
-    dplyr::collect() |>
-    as.data.frame()
-
-  expect_equal(prepared$queries$sequence, "ACGT")
-  expect_equal(mapping$imd_chain_id, "chain-submitted")
-})
-
 test_that("IgBLAST rejects unknown, duplicate, and malformed AIRR IDs", {
   submitted <- igblast_test_submitted_queries()[1:2, ]
 
@@ -136,36 +69,6 @@ test_that("IgBLAST paired merge preserves rows missing from AIRR output", {
   expect_true(is.na(final$v_call[final$sequence_id == "query-2"]))
 })
 
-test_that("IgBLAST validates its ImmunData sequence input", {
-  expect_error(
-    igblast_prepare_input(
-      make_igblast_test_immundata(sequence = "CASSLG"),
-      "sequence"
-    ),
-    "ungapped IUPAC nucleotide",
-    fixed = TRUE
-  )
-  expect_error(
-    igblast_prepare_input(
-      make_igblast_test_immundata(sequence = "ACGT-ACGT"),
-      "sequence"
-    ),
-    "ungapped IUPAC nucleotide",
-    fixed = TRUE
-  )
-  expect_error(
-    igblast_prepare_input(
-      make_igblast_test_immundata(
-        sequence = c(NA_character_, ""),
-        chain_id = c("chain-missing", "chain-empty")
-      ),
-      "sequence"
-    ),
-    "No nucleotide sequences",
-    fixed = TRUE
-  )
-})
-
 test_that("IgBLAST prepares multiline gzip-compressed FASTA input", {
   input <- withr::local_tempfile(fileext = ".fasta.gz")
   connection <- gzfile(input, open = "wt")
@@ -178,7 +81,7 @@ test_that("IgBLAST prepares multiline gzip-compressed FASTA input", {
   ), connection)
   close(connection)
 
-  prepared <- igblast_prepare_input(input, "unused")
+  prepared <- igblast_prepare_input(input)
 
   expect_equal(
     prepared$queries,
@@ -210,7 +113,7 @@ test_that("IgBLAST preserves FASTA sequence names and duplicate sequences", {
     "ttgg"
   ), input)
 
-  prepared <- igblast_prepare_input(input, "unused")
+  prepared <- igblast_prepare_input(input)
 
   expect_equal(
     prepared$queries,
@@ -241,8 +144,7 @@ test_that("IgBLAST validates paired FASTA and annotation-table names", {
   )
 
   prepared <- igblast_prepare_input(
-    c(fasta = fasta, annotations = annotations),
-    "unused"
+    c(fasta = fasta, annotations = annotations)
   )
   expect_equal(prepared$annotation_id_col, "contig_id")
   expect_s3_class(prepared$annotations, "duckplyr_df")
@@ -254,8 +156,7 @@ test_that("IgBLAST validates paired FASTA and annotation-table names", {
   )
   expect_error(
     igblast_prepare_input(
-      c(fasta = fasta, annotations = annotations),
-      "unused"
+      c(fasta = fasta, annotations = annotations)
     ),
     "1 occur only in FASTA and 1 occur only in the annotation table",
     fixed = TRUE
@@ -268,8 +169,7 @@ test_that("IgBLAST validates paired FASTA and annotation-table names", {
   )
   expect_error(
     igblast_prepare_input(
-      c(fasta = fasta, annotations = annotations),
-      "unused"
+      c(fasta = fasta, annotations = annotations)
     ),
     "must be unique; duplicated: contig-1",
     fixed = TRUE
@@ -280,7 +180,7 @@ test_that("IgBLAST validates FASTA structure and nucleotide sequences", {
   missing_header <- withr::local_tempfile(fileext = ".fasta")
   writeLines("ACGT", missing_header)
   expect_error(
-    igblast_prepare_input(missing_header, "unused"),
+    igblast_prepare_input(missing_header),
     "must start with a `>` header",
     fixed = TRUE
   )
@@ -288,7 +188,7 @@ test_that("IgBLAST validates FASTA structure and nucleotide sequences", {
   duplicate_id <- withr::local_tempfile(fileext = ".fasta")
   writeLines(c(">query", "ACGT", ">query description", "TGCA"), duplicate_id)
   expect_error(
-    igblast_prepare_input(duplicate_id, "unused"),
+    igblast_prepare_input(duplicate_id),
     "sequence names must be unique",
     fixed = TRUE
   )
@@ -296,7 +196,7 @@ test_that("IgBLAST validates FASTA structure and nucleotide sequences", {
   missing_sequence <- withr::local_tempfile(fileext = ".fasta")
   writeLines(c(">query-1", ">query-2", "ACGT"), missing_sequence)
   expect_error(
-    igblast_prepare_input(missing_sequence, "unused"),
+    igblast_prepare_input(missing_sequence),
     "contain no sequence: query-1",
     fixed = TRUE
   )
@@ -304,15 +204,14 @@ test_that("IgBLAST validates FASTA structure and nucleotide sequences", {
   invalid_sequence <- withr::local_tempfile(fileext = ".fasta")
   writeLines(c(">query", "CASSLG"), invalid_sequence)
   expect_error(
-    igblast_prepare_input(invalid_sequence, "unused"),
+    igblast_prepare_input(invalid_sequence),
     "ungapped IUPAC nucleotide sequences",
     fixed = TRUE
   )
 })
 
 test_that("IgBLAST fixture contains full human TRB nucleotide sequences", {
-  idata <- read_igblast_fixture()
-  fixture <- idata$annotations |>
+  fixture <- read_igblast_fixture() |>
     dplyr::select(source_id, locus, sequence) |>
     dplyr::collect() |>
     as.data.frame()

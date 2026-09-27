@@ -1,8 +1,8 @@
 #' Base class for parsed external-tool results
 #'
 #' Every result exposes `$annotate(idata)`. Results that cannot annotate
-#' `ImmunData` override the default with a result-specific explanation and next
-#' step. Results that can add columns to `ImmunData` implement this method.
+#' `ImmunData` use the default error or provide a result-specific explanation.
+#' Results that can add columns to `ImmunData` implement this method.
 #'
 #' @field run The read-only [ToolRun] that produced these results.
 #' @field tool The read-only name of the tool that produced these results.
@@ -20,9 +20,8 @@ ToolResults <- R6::R6Class(
       private$.run <- run
     },
     #' @description
-    #' Add result annotations to immune-repertoire data. Concrete result
-    #' classes implement the annotation operation. The base method reports an
-    #' informative error when a result cannot provide annotations.
+    #' Add result annotations to immune-repertoire data when supported. The
+    #' base method reports an informative error otherwise.
     #' @param idata An [immundata::ImmunData] object to annotate.
     #' @param ... Additional arguments passed to the concrete annotation
     #'   method.

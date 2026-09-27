@@ -5,8 +5,8 @@
 \title{Base class for parsed external-tool results}
 \description{
 Every result exposes \verb{$annotate(idata)}. Results that cannot annotate
-\code{ImmunData} override the default with a result-specific explanation and next
-step. Results that can add columns to \code{ImmunData} implement this method.
+\code{ImmunData} use the default error or provide a result-specific explanation.
+Results that can add columns to \code{ImmunData} implement this method.
 }
 \keyword{internal}
 \section{Active bindings}{
@@ -48,9 +48,8 @@ step. Results that can add columns to \code{ImmunData} implement this method.
 \if{html}{\out{<a id="method-ToolResults-annotate"></a>}}
 \if{latex}{\out{\hypertarget{method-ToolResults-annotate}{}}}
 \subsection{\code{ToolResults$annotate()}}{
-  Add result annotations to immune-repertoire data. Concrete result
-classes implement the annotation operation. The base method reports an
-informative error when a result cannot provide annotations.
+  Add result annotations to immune-repertoire data when supported. The
+base method reports an informative error otherwise.
   \subsection{Usage}{
     \if{html}{\out{<div class="r">}}
     \preformatted{ToolResults$annotate(idata, ...)}

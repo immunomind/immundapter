@@ -1,138 +1,3 @@
-test_that("IgBLAST runs ImmunData through preserved AIRR artifacts", {
-  testthat::local_mocked_bindings(
-    igblast_runtime_info = igblast_test_runtime_info,
-    igblast_call = function(arguments) {
-      queries <- read_igblast_test_queries(arguments)
-
-      write_igblast_test_airr(
-        arguments,
-        data.frame(
-          sequence_id = queries$sequence_id,
-          sequence = queries$sequence,
-          locus = "TRB",
-          v_call = "TRBV10-3*01",
-          d_call = "TRBD1*01",
-          j_call = "TRBJ2-3*01",
-          productive = TRUE,
-          sequence_alignment = queries$sequence,
-          germline_alignment = gsub("N", "A", queries$sequence)
-        )
-      )
-    },
-    .package = "immundapter"
-  )
-
-  idata <- make_igblast_test_immundata()
-  run <- tool_igblast(conf_igblast(
-    num_threads = 3L,
-    run_args = list(num_alignments_V = 1L)
-  ))$run(
-    idata,
-    output_dir = withr::local_tempdir()
-  )
-
-  expect_s3_class(run, "IgblastRun")
-  expect_equal(run$tool, "igblast")
-  expect_equal(run$config$num_threads, 3L)
-  expect_setequal(
-    names(run$artifacts),
-    c("input", "config", "mapping", "airr")
-  )
-  expect_true(all(vapply(
-    run$artifacts,
-    fs::file_exists,
-    logical(1L)
-  )))
-  expect_equal(
-    readLines(run$artifacts$input),
-    c(">igblast_query_000000001", "ACGTRYSWKMBDHVN")
-  )
-
-  manifest <- jsonlite::read_json(
-    run$artifacts$config,
-    simplifyVector = TRUE
-  )
-  expect_equal(manifest$fixed$outfmt, "AIRR")
-  expect_equal(manifest$fixed$organism, "auto")
-  expect_equal(manifest$fixed$ig_seqtype, "auto")
-  expect_equal(manifest$fixed$domain_system, "imgt")
-  expect_equal(
-    manifest$runtime$germline_db,
-    "IMGT.mock.Homo_sapiens.TRB"
-  )
-  expect_equal(manifest$runtime$igblastr_version, "1.0.23")
-  expect_equal(manifest$runtime$igblast_version, "1.22.0")
-  expect_equal(
-    manifest$runtime$igblast_build,
-    "igblast 1.22.0, mock build"
-  )
-  expect_equal(manifest$runtime$igblast_root, "/mock/igblast")
-  expect_equal(manifest$number_input_sequences, 2L)
-  expect_equal(manifest$number_unique_sequences, 1L)
-  expect_equal(manifest$effective_args$num_threads, 3L)
-  expect_equal(manifest$effective_args$num_alignments_V, 1L)
-  expect_false(any(c("query", "out") %in% names(manifest$effective_args)))
-
-  results <- run$results()
-  expect_s3_class(results, "IgblastResults")
-  expect_identical(results$run, run)
-  expect_s3_class(results$airr, "duckplyr_df")
-  expect_s3_class(results$mapping, "duckplyr_df")
-  expect_identical(results$raw_output, run$artifacts$airr)
-
-  airr <- results$airr |>
-    dplyr::collect() |>
-    as.data.frame()
-  expect_equal(nrow(airr), 1L)
-  expect_equal(airr$sequence_id, "igblast_query_000000001")
-  expect_equal(airr$v_call, "TRBV10-3*01")
-
-  mapping <- results$mapping |>
-    dplyr::collect() |>
-    as.data.frame()
-  expect_equal(nrow(mapping), 2L)
-  expect_setequal(mapping$imd_chain_id, c("chain-1", "chain-2"))
-
-  annotated <- results$annotate(idata)
-  annotated_alignments <- annotated$annotations |>
-    dplyr::select(
-      imd_chain_id,
-      sequence_alignment,
-      germline_alignment
-    ) |>
-    dplyr::collect() |>
-    as.data.frame()
-  expect_equal(nrow(annotated_alignments), 3L)
-  expect_true(all(!is.na(
-    annotated_alignments$sequence_alignment[
-      annotated_alignments$imd_chain_id %in% c("chain-1", "chain-2")
-    ]
-  )))
-  expect_true(is.na(
-    annotated_alignments$sequence_alignment[
-      annotated_alignments$imd_chain_id == "chain-3"
-    ]
-  ))
-
-  custom <- results$annotate(
-    idata,
-    columns = c("v_call", "productive")
-  )
-  expect_true(all(
-    c("v_call", "productive") %in% colnames(custom$annotations)
-  ))
-  expect_error(
-    results$annotate(idata, columns = "not_an_airr_column"),
-    "result column(s) not found: not_an_airr_column",
-    fixed = TRUE
-  )
-  expect_error(
-    results$annotate(idata, columns = "sequence_id"),
-    "cannot be annotated",
-    fixed = TRUE
-  )
-})
-
 test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
   testthat::local_mocked_bindings(
     igblast_runtime_info = igblast_test_runtime_info,
@@ -162,11 +27,17 @@ test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
     "ttgg"
   ), input)
 
-  run <- tool_igblast()$run(
+  run <- tool_igblast(conf_igblast(
+    num_threads = 3L,
+    run_args = list(num_alignments_V = 1L)
+  ))$run(
     input,
     output_dir = withr::local_tempdir()
   )
 
+  expect_s3_class(run, "IgblastRun")
+  expect_equal(run$tool, "igblast")
+  expect_setequal(names(run$artifacts), c("input", "config", "mapping", "airr"))
   expect_equal(run$input$type, "files")
   expect_equal(unname(run$input$paths), as.character(fs::path_abs(input)))
   expect_equal(
@@ -186,8 +57,18 @@ test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
     simplifyVector = TRUE
   )
   expect_equal(manifest$input_type, "fasta")
+  expect_false("sequence_col" %in% names(manifest))
+  expect_equal(manifest$number_input_sequences, 3L)
+  expect_equal(manifest$number_unique_sequences, 3L)
+  expect_equal(manifest$fixed$outfmt, "AIRR")
+  expect_equal(manifest$effective_args$num_threads, 3L)
+  expect_equal(manifest$effective_args$num_alignments_V, 1L)
 
   results <- run$results()
+  expect_s3_class(results, "IgblastResults")
+  expect_s3_class(results$airr, "duckplyr_df")
+  expect_s3_class(results$mapping, "duckplyr_df")
+  expect_identical(results$raw_output, run$artifacts$airr)
   mapping <- results$mapping |>
     dplyr::collect() |>
     as.data.frame()
@@ -208,11 +89,6 @@ test_that("IgBLAST runs FASTA input through preserved AIRR artifacts", {
   expect_equal(nrow(airr), 3L)
   expect_equal(airr$sequence_id, c("query-2", "query-1", "query-3"))
 
-  expect_error(
-    results$annotate(make_igblast_test_immundata()),
-    "results produced from FASTA input cannot annotate",
-    fixed = TRUE
-  )
   expect_error(
     results$final,
     "No final merged table is available",
@@ -286,6 +162,12 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
         data.frame(
           sequence_id = queries$sequence_id,
           sequence = queries$sequence,
+          sequence_alignment = queries$sequence,
+          germline_alignment = queries$sequence,
+          v_germline_start = c(1L, 1L),
+          v_germline_end = c(4L, 4L),
+          j_germline_start = c(1L, 1L),
+          j_germline_end = c(2L, 2L),
           locus = c("IGH", "IGK"),
           productive = TRUE,
           v_call = c("IGHV1-2*01", "IGKV1-5*01"),
@@ -405,11 +287,15 @@ test_that("IgBLAST merges FASTA results with 10x annotations", {
   expect_setequal(clean_annotations$locus, c("IGH", "IGK"))
   expect_equal(clean_annotations$imd_barcode, c("cell-1", "cell-1"))
   expect_true(all(c(
-    "sequence_id", "v_call", "j_call", "junction_aa", "old_v_gene"
+    "sequence_id", "sequence_alignment", "v_germline_start",
+    "v_germline_end", "j_germline_start", "j_germline_end",
+    "v_call", "j_call", "junction_aa", "old_v_gene"
   ) %in% colnames(clean_annotations)))
+  expect_equal(clean_annotations$sequence_alignment, c("ACGT", "TGCA"))
+  expect_equal(clean_annotations$v_germline_end, c(4L, 4L))
 })
 
-test_that("IgBLAST runs the human TCR fixture with igblastr", {
+test_that("IgBLAST runs the human TCR FASTA fixture with igblastr", {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("igblastr")
   testthat::skip_if_not(igblastr::has_igblast())
@@ -426,29 +312,7 @@ test_that("IgBLAST runs the human TCR fixture with igblastr", {
   )
   suppressMessages(igblastr::use_germline_db(database[[1L]]))
 
-  idata <- read_igblast_fixture()
-  run <- tool_igblast()$run(
-    idata,
-    output_dir = withr::local_tempdir()
-  )
-  results <- run$results()
-  airr <- results$airr |>
-    dplyr::select(sequence_id, locus, v_call, j_call) |>
-    dplyr::collect() |>
-    as.data.frame()
-
-  expect_equal(nrow(airr), 3L)
-  expect_true(all(airr$locus == "TRB"))
-  expect_true(all(grepl("^TRBV", airr$v_call)))
-  expect_true(all(grepl("^TRBJ", airr$j_call)))
-
-  annotated <- results$annotate(idata)
-  expect_true(all(
-    c("sequence_alignment", "germline_alignment") %in%
-      colnames(annotated$annotations)
-  ))
-
-  fixture <- idata$annotations |>
+  fixture <- read_igblast_fixture() |>
     dplyr::select(source_id, sequence) |>
     dplyr::collect() |>
     as.data.frame()

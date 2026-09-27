@@ -18,12 +18,13 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 biocViews:
 Imports:
+    ape,
     checkmate,
     cli,
     dplyr,
     duckplyr,
     fs,
-    immundata,
+    immundata (>= 0.1.0),
     jsonlite,
     R6,
     rlang,

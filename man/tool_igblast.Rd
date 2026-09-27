@@ -3,16 +3,13 @@
 \name{tool_igblast}
 \alias{tool_igblast}
 \alias{conf_igblast}
-\title{Annotate B-cell and T-cell receptor sequences with IgBLAST}
+\title{Assign germline genes to raw receptor sequences with IgBLAST}
 \usage{
-conf_igblast(sequence_col = "sequence", num_threads = NULL, run_args = list())
+conf_igblast(num_threads = NULL, run_args = list())
 
 tool_igblast(config = conf_igblast())
 }
 \arguments{
-\item{sequence_col}{For \code{ImmunData} input, the chain column containing
-ungapped nucleotide sequences. It is ignored for FASTA input.}
-
 \item{num_threads}{Number of computer threads available to IgBLAST. \code{NULL}
 uses the IgBLAST default.}
 
@@ -28,16 +25,27 @@ required by the immundapter workflow cannot be changed here.}
 }
 \description{
 IgBLAST identifies the germline genes that most likely produced each immune
-receptor sequence. Use it to add V, D, J, and, when available, C gene
-calls to BCR or TCR nucleotide sequences. Results use standard AIRR column
-names.
+receptor sequence. It produces V, D, J, and, when available, C gene calls
+in an AIRR table that can be imported with \code{\link[immundata:read_repertoires]{immundata::read_repertoires()}}.
 
 The usual workflow is:
 
-\if{html}{\out{<div class="sourceCode r">}}\preformatted{tool <- tool_igblast()
-run <- tool$run(idata)
-results <- run$results()
-annotated_idata <- results$annotate(idata)
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{run <- tool_igblast()$run(c(
+  fasta = "sequences.fasta",
+  annotations = "contig_annotations.csv"
+))
+idata <- immundata::read_repertoires(
+  path = run$results()$final_output,
+  schema = immundata::make_receptor_schema(
+    features = c("v_call", "j_call", "junction_aa"),
+    chains = c("IGH", "IGK|IGL")
+  ),
+  barcode_col = "barcode",
+  locus_col = "locus",
+  umi_col = "umis",
+  preprocess = immundata::make_default_preprocessing("10x"),
+  rename_columns = NULL
+)
 }\if{html}{\out{</div>}}
 }
 \details{
@@ -88,11 +96,8 @@ The tool keeps its default settings in \code{tool$config}. Supplying \code{confi
 \section{Choose the input}{
 
 
-\code{tool$run()} accepts three forms of input:
+\code{tool$run()} accepts two forms of input:
 \itemize{
-\item \strong{An \code{ImmunData} dataset.} \code{sequence_col} selects the chain column that
-contains the nucleotide sequence. The result can be added back to the same
-dataset with \code{results$annotate(idata)}.
 \item \strong{A FASTA file.} Pass a path ending in \code{.fasta} or \code{.fasta.gz}. Use this
 when no annotation table needs to be preserved.
 \item \strong{A FASTA file and its annotation table.} Pass
@@ -117,13 +122,12 @@ must remain beside the new IgBLAST annotations.
 The tables are disk-backed. Use \code{dplyr::collect()} only when you want to
 bring a table into R memory.
 
-With \code{ImmunData} input, \code{results$annotate(idata)} returns a new dataset. By
-default, it adds \code{sequence_alignment}, \code{germline_alignment}, and \code{c_call}.
-The original dataset is not changed.
-
 With paired FASTA and annotation input, \code{results$final} contains the source
 columns joined with all AIRR columns. \code{results$final_output} is the path to
-the same table as a TSV file.
+the same table as a TSV file. Pass this file to
+\code{\link[immundata:read_repertoires]{immundata::read_repertoires()}} to create an \code{ImmunData} dataset. Choose
+preprocessing that retains \code{sequence_alignment} when subsequent analyses
+need IMGT-gapped alignments and coordinates.
 }
 
 \section{IMGT gaps and coordinates}{
@@ -155,9 +159,6 @@ coordinates are not converted to IMGT-gapped V coordinates.
 \section{Input details}{
 
 
-Missing or empty \code{ImmunData} sequences are skipped. Identical sequences are
-analysed once and then matched back to every original chain.
-
 FASTA names must be unique. In \verb{>cell_1 description}, the name is \code{cell_1}.
 For paired input, the annotation table must contain a unique \code{contig_id} or
 \code{sequence_id} column whose values match the FASTA names. CSV, TSV, TXT, and
@@ -180,48 +181,25 @@ suppressMessages(
   igblastr::use_germline_db(sort(databases)[[length(databases)]])
 )
 
-config <- conf_igblast(sequence_col = "sequence")
+config <- conf_igblast()
 tool <- tool_igblast(config)
 stopifnot(tool$check())
 
 antitnf_dir <- system.file("extdata", "antitnf", package = "immundapter")
-antitnf_airr <- file.path(antitnf_dir, "igblast_airr.tsv.gz")
 antitnf_fasta <- file.path(antitnf_dir, "bcr_contigs.fasta.gz")
 antitnf_annotations <- file.path(
   antitnf_dir,
   "contig_annotations.csv.gz"
 )
 
-# Read an AIRR file as ImmunData.
-bcr_schema <- immundata::make_receptor_schema(
-  features = c("sequence", "v_call", "j_call", "junction_aa"),
-  chains = c("IGH", "IGK|IGL")
-)
-idata <- immundata::read_repertoires(
-  path = antitnf_airr,
-  schema = bcr_schema,
-  barcode_col = "barcode",
-  locus_col = "locus",
-  umi_col = "umis",
-  preprocess = immundata::make_default_preprocessing("airr"),
-  postprocess = NULL,
-  rename_columns = NULL,
-  repertoire_schema = NULL,
-  output_folder = tempfile("antitnf-immundata-")
-)
-# Re-annotate its nucleotide sequences with the selected germline database.
-idata_run <- tool$run(idata, output_dir = tempfile("igblast-immundata-"))
-idata_results <- idata_run$results()
-aligned_idata <- idata_results$annotate(idata, conflicts = "replace")
-
-# Alternatively, analyse a FASTA file directly.
+# Analyse a FASTA file directly.
 fasta_run <- tool$run(
   antitnf_fasta,
   output_dir = tempfile("igblast-fasta-")
 )
 fasta_airr <- dplyr::collect(fasta_run$results()$airr)
 
-# Or preserve the matching 10x annotation table.
+# Preserve the matching 10x annotation table and import the AIRR result.
 paired_run <- tool$run(
   c(
     fasta = antitnf_fasta,
@@ -229,7 +207,19 @@ paired_run <- tool$run(
   ),
   output_dir = tempfile("igblast-10x-")
 )
-paired_final <- dplyr::collect(paired_run$results()$final)
+idata <- immundata::read_repertoires(
+  path = paired_run$results()$final_output,
+  schema = immundata::make_receptor_schema(
+    features = c("v_call", "j_call", "junction_aa"),
+    chains = c("IGH", "IGK|IGL")
+  ),
+  barcode_col = "barcode",
+  locus_col = "locus",
+  umi_col = "umis",
+  preprocess = immundata::make_default_preprocessing("10x"),
+  rename_columns = NULL,
+  output_folder = tempfile("antitnf-immundata-")
+)
 \dontshow{\}) # examplesIf}
 }
 \seealso{

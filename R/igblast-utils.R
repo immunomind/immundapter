@@ -251,69 +251,6 @@ igblast_normalize_imgt <- function(airr, plans) {
 }
 
 
-igblast_prepare_immundata <- function(idata, sequence_col) {
-  chain_col <- immundata::imd_schema("chain")
-  required <- c(chain_col, sequence_col)
-  missing <- setdiff(required, colnames(idata$annotations))
-  if (length(missing) > 0L) {
-    rlang::abort(sprintf(
-      "IgBLAST input is missing required column(s): %s.",
-      paste(missing, collapse = ", ")
-    ))
-  }
-
-  inputs <- idata$annotations |>
-    dplyr::select(dplyr::all_of(required)) |>
-    dplyr::rename(sequence = dplyr::all_of(sequence_col))
-
-  chains <- inputs |>
-    dplyr::filter(!is.na(sequence)) |>
-    dplyr::filter(sequence != "") |>
-    dplyr::mutate(sequence = dd$upper(sequence))
-
-  queries <- chains |>
-    dplyr::select(sequence) |>
-    dplyr::distinct() |>
-    dplyr::arrange(sequence) |>
-    dplyr::collect() |>
-    as.data.frame()
-  if (nrow(queries) == 0L) {
-    rlang::abort(sprintf(
-      "No nucleotide sequences are available in `%s`.",
-      sequence_col
-    ))
-  }
-  if (
-    !is.character(queries$sequence) ||
-      any(!grepl("^[ACGTRYSWKMBDHVN]+$", queries$sequence))
-  ) {
-    rlang::abort(sprintf(
-      "`%s` must contain ungapped IUPAC nucleotide sequences.",
-      sequence_col
-    ))
-  }
-
-  queries$igblast_query_id <- sprintf(
-    "igblast_query_%09d",
-    seq_len(nrow(queries))
-  )
-  queries <- queries[c("igblast_query_id", "sequence")]
-
-  lookup <- duckplyr::as_duckdb_tibble(queries)
-  mapping <- chains |>
-    dplyr::inner_join(lookup, by = "sequence") |>
-    dplyr::select(
-      dplyr::all_of(c(chain_col, "igblast_query_id"))
-    ) |>
-    dplyr::distinct()
-
-  list(
-    queries = queries,
-    mapping = mapping
-  )
-}
-
-
 igblast_read_fasta <- function(path) {
   connection <- if (grepl("\\.gz$", path, ignore.case = TRUE)) {
     gzfile(path, open = "rt")
@@ -633,10 +570,7 @@ igblast_validate_airr <- function(airr, queries) {
 }
 
 
-igblast_prepare_input <- function(input, sequence_col) {
-  if (inherits(input, "ImmunData")) {
-    return(igblast_prepare_immundata(input, sequence_col))
-  }
+igblast_prepare_input <- function(input) {
   if (length(input) == 2L) {
     return(igblast_prepare_fasta_annotations(
       input[["fasta"]],

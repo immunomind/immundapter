@@ -1,11 +1,10 @@
 test_that("IgBLAST exposes only adapter-owned user settings", {
   expect_identical(
     names(formals(conf_igblast)),
-    c("sequence_col", "num_threads", "run_args")
+    c("num_threads", "run_args")
   )
 
   config <- conf_igblast()
-  expect_equal(config$sequence_col, "sequence")
   expect_null(config$num_threads)
   expect_equal(config$run_args, list())
   expect_false("organism" %in% names(config))
