@@ -27,13 +27,13 @@
 #' makes them easy to distinguish from the original columns.
 #'
 #' @param output_dir Directory used to store VDJdb. Defaults to the `data`
-#'   directory under `IMMUNDAPTER_DATA`, or `~/immundapter_data/data` when the
-#'   environment variable is not set.
+#'   subdirectory of `IMMUNDAPTER_DATA` when set, or of
+#'   `tools::R_user_dir("immundapter", "cache")` otherwise.
 #'
 #' @return A VDJdb data source.
 #'
-#' @examplesIf interactive()
-#' data <- data_vdjdb()
+#' @examplesIf identical(Sys.getenv("IMD_RUN_EXAMPLES"), "true")
+#' data <- data_vdjdb(output_dir = tempfile("vdjdb-cache-"))
 #'
 #' # First call: print instructions. Second call: perform the download.
 #' data$download()
@@ -43,6 +43,19 @@
 #' vdjdb_table <- data$load()
 #' dplyr::collect(vdjdb_table)
 #'
+#' input_file <- system.file(
+#'   "extdata", "tcrdist3", "tcr-cluster-simple.tsv",
+#'   package = "immundapter"
+#' )
+#' idata <- immundata::read_repertoires(
+#'   path = input_file,
+#'   schema = immundata::make_receptor_schema(
+#'     features = c("v_call", "j_call", "junction_aa"), chains = "TRB"
+#'   ),
+#'   barcode_col = "cell_id", locus_col = "locus",
+#'   umi_col = "duplicate_count",
+#'   output_folder = tempfile("vdjdb-immundata-")
+#' )
 #' annotated_idata <- data$annotate(idata)
 #' @seealso [VDJdb database](https://github.com/antigenomics/vdjdb-db)
 #' @export

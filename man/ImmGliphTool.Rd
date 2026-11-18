@@ -21,7 +21,7 @@ and available output.
 
 \keyword{internal}
 \section{Super class}{
-\code{AbstractTool} -> \code{ImmGliphTool}
+\code{\link[immundapter:AbstractTool]{AbstractTool}} -> \code{ImmGliphTool}
 }
 \section{Methods}{
 \subsection{Public methods}{
@@ -31,10 +31,10 @@ and available output.
 }
 \if{html}{\out{<details open><summary>Inherited methods</summary>
 <ul>
-  <li><code>AbstractTool$check()</code></li>
-  <li><code>AbstractTool$citation()</code></li>
-  <li><code>AbstractTool$help()</code></li>
-  <li><code>AbstractTool$run()</code></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="check"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-check'><code>AbstractTool$check()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="citation"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-citation'><code>AbstractTool$citation()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="help"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-help'><code>AbstractTool$help()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="run"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-run'><code>AbstractTool$run()</code></a></span></li>
 </ul>
 </details>}}
 \if{html}{\out{<hr>}}

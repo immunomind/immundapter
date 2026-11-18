@@ -9,13 +9,14 @@ test_that("RAxML-NG configuration has family-level defaults", {
   expect_equal(config$model, "GTR+G")
   expect_null(config$seed)
   expect_null(config$threads)
+  expect_false(config$ancestral)
   expect_null(config$partition_col)
   expect_null(config$brlen)
   expect_named(
     config$as_list(),
     c(
       "alignment_col", "family_col", "tip_col", "locus", "analysis",
-      "model", "seed", "threads", "partition_col", "brlen"
+      "model", "seed", "threads", "ancestral", "partition_col", "brlen"
     )
   )
 })
@@ -62,6 +63,13 @@ test_that("RAxML-NG configuration validates reproducibility settings", {
   expect_error(conf_raxml_ng(seed = 1.5))
   expect_error(conf_raxml_ng(threads = 0))
   expect_error(conf_raxml_ng(threads = "auto"))
+})
+
+
+test_that("RAxML-NG ancestral reconstruction is opt-in", {
+  expect_true(conf_raxml_ng(ancestral = TRUE)$ancestral)
+  expect_error(conf_raxml_ng(ancestral = 1))
+  expect_error(conf_raxml_ng(ancestral = NA))
 })
 
 

@@ -21,10 +21,13 @@ run <- tool$run(input, output_dir = "analysis/tcrdist3")
 results <- run$results()
 }\if{html}{\out{</div>}}
 
-The accepted \code{input} is different for each tool. See \link{tcrdist3}, \link{igblast},
-\link{immgliph}, or \link{raxml-ng} for exact input columns and result fields. The
-\verb{$run()} records where the files were saved. Use \verb{$results()} to read the
-biological output.
+The accepted \code{input} is different for each tool. See \code{\link[=tool_tcrdist3]{tool_tcrdist3()}},
+\code{\link[=tool_igblast]{tool_igblast()}}, \link{immgliph}, or \link{raxml-ng} for exact input columns and
+result fields. The \verb{$run()} records where the files were saved. Use
+\verb{$results()} to read the biological output.
+
+Use \code{\link[=set_output_dir]{set_output_dir()}} to save a default for file-based
+runs. An explicit \code{output_dir} overrides the saved preference for that run.
 
 Large result tables remain on disk until needed. Use \code{dplyr::collect()} to
 read a table into R.
@@ -33,6 +36,14 @@ VDJdb is a reference database, so it uses a shorter workflow.
 See \code{\link[=data_vdjdb]{data_vdjdb()}} for downloading, loading, and matching VDJdb records.
 }
 
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://immunomind.github.io/immundapter/}
+  \item \url{https://github.com/immunomind/immundapter}
+}
+
+}
 \author{
 \strong{Maintainer}: Vadim I. Nazarov \email{support@immunomind.com} (\href{https://orcid.org/0000-0003-3659-2709}{ORCID})
 

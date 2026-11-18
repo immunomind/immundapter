@@ -4,14 +4,17 @@
 \alias{immundapter_data_root}
 \title{Base class for immune-repertoire data sources}
 \usage{
-immundapter_data_root()
+immundapter_data_root(which = "cache")
+}
+\arguments{
+\item{which}{R user directory type used when \code{IMMUNDAPTER_DATA} is unset.}
 }
 \description{
 \code{AbstractData} contains the code shared by reference-data sources.
 }
 \details{
-Data are stored in \verb{~/immundapter_data/data} by default. Set
-\code{IMMUNDAPTER_DATA} to change the root directory. A concrete data-source
-constructor may accept another output directory.
+Downloads are stored in the \code{data} subdirectory of the package cache by
+default. Set \code{IMMUNDAPTER_DATA} to change the root directory. A concrete
+data-source constructor may accept another output directory.
 }
 \keyword{internal}

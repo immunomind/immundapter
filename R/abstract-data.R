@@ -2,22 +2,23 @@
 #'
 #' `AbstractData` contains the code shared by reference-data sources.
 #'
-#' Data are stored in `~/immundapter_data/data` by default. Set
-#' `IMMUNDAPTER_DATA` to change the root directory. A concrete data-source
-#' constructor may accept another output directory.
+#' Downloads are stored in the `data` subdirectory of the package cache by
+#' default. Set `IMMUNDAPTER_DATA` to change the root directory. A concrete
+#' data-source constructor may accept another output directory.
 #'
+#' @param which R user directory type used when `IMMUNDAPTER_DATA` is unset.
 #' @keywords internal
-immundapter_data_root <- function() {
+immundapter_data_root <- function(which = "cache") {
   root <- Sys.getenv("IMMUNDAPTER_DATA", unset = "")
   if (!nzchar(root)) {
-    root <- fs::path_home("immundapter_data")
+    root <- tools::R_user_dir("immundapter", which)
   }
 
-  fs::path_abs(root)
+  fs::path_abs(fs::path_expand(root))
 }
 
-immundapter_data_path <- function(...) {
-  fs::path(immundapter_data_root(), ...)
+immundapter_data_path <- function(..., which = "cache") {
+  fs::path(immundapter_data_root(which), ...)
 }
 
 AbstractData <- R6::R6Class(

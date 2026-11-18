@@ -16,6 +16,7 @@ conf_raxml_ng(
   model = "GTR+G",
   seed = NULL,
   threads = NULL,
+  ancestral = FALSE,
   partition_col = NULL,
   brlen = NULL
 )
@@ -49,6 +50,9 @@ RAxML-NG default.}
 \item{threads}{Optional positive integer thread count. \code{NULL} retains the
 RAxML-NG automatic default.}
 
+\item{ancestral}{Whether to run RAxML-NG ancestral-state reconstruction on
+every successfully inferred family tree.}
+
 \item{partition_col}{Optional column containing one partition specification
 per family.}
 
@@ -66,7 +70,7 @@ default to \code{"scaled"}.}
 RAxML-NG builds a phylogenetic tree for each sequence family. This
 tool takes aligned nucleotide sequences from \link[immundata:ImmunData]{immundata::ImmunData} and
 runs each family independently. It does not define families, align sequences,
-add germlines, or root trees. Complete those steps before running RAxML-NG.
+or reconstruct germlines. Complete those steps before running RAxML-NG.
 
 \code{RaxmlNgToolConfig} stores validated settings for one type of family-level
 RAxML-NG analysis. It contains no sequences and no trees. Create it with
@@ -99,6 +103,12 @@ an optional \code{partition_spec} column must agree with the observed family
 specification; when omitted, that specification is inherited. Additional
 tips are never added to or joined into \code{ImmunData}.
 
+\code{outgroups} optionally identifies one or more existing tips per family. It
+must be a data frame or duckplyr table with \code{family_id} and \code{tip_id} columns.
+The identified tips may come from \code{ImmunData} or \code{additional_tips}. RAxML-NG
+output is rooted by the adapter, which writes a rooted copy of each
+successful tree while preserving the raw RAxML-NG tree.
+
 \code{locus} selects the receptor chain used for the tree. With paired
 receptors, only the selected chain is used. The selected locus must agree
 with the chains stored in the \code{ImmunData} dataset.
@@ -118,11 +128,15 @@ The tool supports two RAxML-NG tree-inference commands:
 \item \strong{\code{"fast"}:} Faster tree search.
 }
 
-Modes that use existing trees or produce other types of output,
-including \code{evaluate}, \code{bootstrap}, \code{support}, and \code{ancestral}, are not part
-of this tool. The default nucleotide model is \code{GTR+G}. Set \code{seed} and
-\code{threads} for reproducible execution, or omit them to retain RAxML-NG's
-defaults. Partitioned analyses default to scaled branch-length linkage.
+Set \code{ancestral = TRUE} to run RAxML-NG ancestral-state reconstruction after
+each successful family tree. This produces a node-labelled tree, reconstructed
+internal-node sequences, and marginal state probabilities. A failed
+ancestral stage does not discard the successful family tree. Other modes
+that use existing trees or produce other types of output, including
+\code{evaluate}, \code{bootstrap}, and \code{support}, are not part of this tool. The
+default nucleotide model is \code{GTR+G}. Set \code{seed} and \code{threads} for
+reproducible execution, or omit them to retain RAxML-NG's defaults.
+Partitioned analyses default to scaled branch-length linkage.
 }
 
 \section{Output from \code{tool$run()}}{
@@ -141,8 +155,15 @@ to each tree file.
 and diagnostic message.
 \item \strong{\code{results$tip_map}:} The original value from \code{tip_col} and the shorter
 tip label used in the RAxML-NG files.
+\item \strong{\code{results$outgroups}:} The original and internal outgroup tip names.
+\item \strong{\code{results$ancestral_index}:} Paths to successful ancestral-state files.
+\item \strong{\code{results$failed_ancestral}:} Families whose optional ancestral stage
+failed, with diagnostics.
 \item \strong{\code{results$read_trees()}:} One Newick tree per family, returned as a named
-character vector. The vector names are the family values.
+character vector. When outgroups were supplied, these are rooted copies.
+\item \strong{\code{results$read_ancestral_trees()}:} Node-labelled ancestral trees.
+\item \strong{\code{results$read_ancestral_states()}:} A duckplyr table of reconstructed
+internal-node sequences.
 }
 
 Tree files remain in the run directory. Trees cannot be added as columns to
@@ -152,11 +173,33 @@ phylogenetic analysis.
 Each family has its own directory containing the prepared FASTA file,
 optional partition file, RAxML-NG output, and log files. A failed family does
 not discard successful results. The returned run has status \code{"partial"} when
-one or more attempted families fail.
+one or more tree or requested ancestral stages fail.
 }
 
 \examples{
-\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+\dontshow{if (identical(Sys.getenv("IMD_RUN_EXAMPLES"), "true")) withAutoprint(\{ # examplesIf}
+sequences <- c(
+  "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+  "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGA",
+  "ACGTACGTACGTACGTACGTACGTACGTACGTACGTTCGT",
+  "ACGTACGTACGTACGTACGTACGTACGTACGTTCGTACGT"
+)
+input_file <- tempfile(fileext = ".tsv")
+utils::write.table(data.frame(
+  cell_id = paste0("cell-", seq_along(sequences)),
+  locus = "IGH", sequence = sequences, clone_id = "family-a",
+  clone_sequence_alignment = sequences, duplicate_count = 1L
+), input_file, sep = "\t", row.names = FALSE, quote = FALSE)
+idata <- immundata::read_repertoires(
+  path = input_file,
+  schema = immundata::make_receptor_schema(
+    features = "sequence", chains = "IGH"
+  ),
+  barcode_col = "cell_id", locus_col = "locus",
+  umi_col = "duplicate_count", repertoire_schema = NULL,
+  preprocess = NULL, postprocess = NULL, rename_columns = NULL,
+  output_folder = tempfile("raxml-immundata-")
+)
 config <- conf_raxml_ng(
   alignment_col = "clone_sequence_alignment",
   family_col = "clone_id",
@@ -165,7 +208,7 @@ config <- conf_raxml_ng(
 tool <- tool_raxml_ng(config)
 tool$check()
 
-run <- tool$run(idata, output_dir = "analysis/raxml-ng")
+run <- tool$run(idata, output_dir = tempfile("raxml-ng-run-"))
 results <- run$results()
 dplyr::collect(results$tree_index)
 trees <- results$read_trees()
@@ -196,6 +239,8 @@ trees <- results$read_trees()
     \item{\code{seed}}{Optional RAxML-NG random seed.}
 
     \item{\code{threads}}{Optional RAxML-NG thread count.}
+
+    \item{\code{ancestral}}{Whether to reconstruct internal-node ancestral states.}
 
     \item{\code{partition_col}}{Optional partition-specification column.}
 

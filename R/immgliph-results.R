@@ -18,44 +18,19 @@ ImmGliphResults <- R6::R6Class(
   cloneable = FALSE,
   active = list(
     groups = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`groups` is read-only.")
-      }
-      path <- private$.run$artifacts$groups
-      checkmate::assert_file_exists(path)
-      duckplyr::read_parquet_duckdb(path)
+      private$artifact("groups", value, type = "parquet")
     },
     connections = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`connections` is read-only.")
-      }
-      path <- private$.run$artifacts$connections
-      checkmate::assert_file_exists(path)
-      duckplyr::read_parquet_duckdb(path)
+      private$artifact("connections", value, type = "parquet")
     },
     cluster_properties = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`cluster_properties` is read-only.")
-      }
-      path <- private$.run$artifacts$cluster_properties
-      checkmate::assert_file_exists(path)
-      duckplyr::read_parquet_duckdb(path)
+      private$artifact("cluster_properties", value, type = "parquet")
     },
     mapping = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`mapping` is read-only.")
-      }
-      path <- private$.run$artifacts$mapping
-      checkmate::assert_file_exists(path)
-      duckplyr::read_parquet_duckdb(path)
+      private$artifact("mapping", value, type = "parquet")
     },
     raw_output = function(value) {
-      if (!missing(value)) {
-        rlang::abort("`raw_output` is read-only.")
-      }
-      path <- private$.run$artifacts$result
-      checkmate::assert_file_exists(path)
-      path
+      private$artifact("result", value, type = "path", field = "raw_output")
     }
   ),
   private = list(

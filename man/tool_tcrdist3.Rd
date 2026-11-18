@@ -200,8 +200,9 @@ region-specific distance matrices are not needed.
 
 
 By default, immundapter uses a dedicated Python environment at
-\verb{~/immundapter_data/environments/tcrdist3}. Call \code{tool$help()} to print the
-installation commands and \code{tool$check()} to verify the environment.
+\code{environments/tcrdist3} under \code{tools::R_user_dir("immundapter", "data")}.
+Call \code{tool$help()} to print the installation commands and \code{tool$check()}
+to verify the environment.
 \verb{$help()} prints instructions; it does not install software.
 
 Set \code{IMMUNDAPTER_DATA} before creating the configuration to use another data

@@ -8,8 +8,8 @@ data_vdjdb(output_dir = immundapter_data_path("data"))
 }
 \arguments{
 \item{output_dir}{Directory used to store VDJdb. Defaults to the \code{data}
-directory under \code{IMMUNDAPTER_DATA}, or \verb{~/immundapter_data/data} when the
-environment variable is not set.}
+subdirectory of \code{IMMUNDAPTER_DATA} when set, or of
+\code{tools::R_user_dir("immundapter", "cache")} otherwise.}
 }
 \value{
 A VDJdb data source.
@@ -45,8 +45,8 @@ makes them easy to distinguish from the original columns.
 }
 
 \examples{
-\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
-data <- data_vdjdb()
+\dontshow{if (identical(Sys.getenv("IMD_RUN_EXAMPLES"), "true")) withAutoprint(\{ # examplesIf}
+data <- data_vdjdb(output_dir = tempfile("vdjdb-cache-"))
 
 # First call: print instructions. Second call: perform the download.
 data$download()
@@ -56,6 +56,19 @@ data$check()
 vdjdb_table <- data$load()
 dplyr::collect(vdjdb_table)
 
+input_file <- system.file(
+  "extdata", "tcrdist3", "tcr-cluster-simple.tsv",
+  package = "immundapter"
+)
+idata <- immundata::read_repertoires(
+  path = input_file,
+  schema = immundata::make_receptor_schema(
+    features = c("v_call", "j_call", "junction_aa"), chains = "TRB"
+  ),
+  barcode_col = "cell_id", locus_col = "locus",
+  umi_col = "duplicate_count",
+  output_folder = tempfile("vdjdb-immundata-")
+)
 annotated_idata <- data$annotate(idata)
 \dontshow{\}) # examplesIf}
 }

@@ -13,7 +13,7 @@ available tree output.
 \itemize{
 \item \strong{\verb{$help()}:} Print installation instructions.
 \item \strong{\verb{$check()}:} Check whether RAxML-NG is installed and report its version.
-\item \strong{\verb{$run(input, config = NULL, output_dir = NULL, additional_tips = NULL)}:}
+\item \strong{\verb{$run(input, config = NULL, output_dir = NULL, additional_tips = NULL, outgroups = NULL)}:}
 Prepare one FASTA alignment per family, run RAxML-NG, and return a
 \link{RaxmlNgRun}.
 \item \strong{\verb{$citation()}:} Reserved for future citation support.
@@ -22,7 +22,7 @@ Prepare one FASTA alignment per family, run RAxML-NG, and return a
 
 \keyword{internal}
 \section{Super class}{
-\code{AbstractTool} -> \code{RaxmlNgTool}
+\code{\link[immundapter:AbstractTool]{AbstractTool}} -> \code{RaxmlNgTool}
 }
 \section{Methods}{
 \subsection{Public methods}{
@@ -33,9 +33,9 @@ Prepare one FASTA alignment per family, run RAxML-NG, and return a
 }
 \if{html}{\out{<details open><summary>Inherited methods</summary>
 <ul>
-  <li><code>AbstractTool$check()</code></li>
-  <li><code>AbstractTool$citation()</code></li>
-  <li><code>AbstractTool$help()</code></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="check"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-check'><code>AbstractTool$check()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="citation"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-citation'><code>AbstractTool$citation()</code></a></span></li>
+  <li><span class="pkg-link" data-pkg="immundapter" data-topic="AbstractTool" data-id="help"><a href='../../immundapter/html/AbstractTool.html#method-AbstractTool-help'><code>AbstractTool$help()</code></a></span></li>
 </ul>
 </details>}}
 \if{html}{\out{<hr>}}
@@ -68,7 +68,8 @@ Prepare one FASTA alignment per family, run RAxML-NG, and return a
   input,
   config = NULL,
   output_dir = NULL,
-  additional_tips = NULL
+  additional_tips = NULL,
+  outgroups = NULL
 )}
     \if{html}{\out{</div>}}
   }
@@ -81,6 +82,9 @@ Prepare one FASTA alignment per family, run RAxML-NG, and return a
       \item{\code{additional_tips}}{Optional data frame or duckplyr table with
 \code{family_id}, \code{tip_id}, \code{aligned_sequence}, and optionally
 \code{partition_spec} columns.}
+      \item{\code{outgroups}}{Optional data frame or duckplyr table with \code{family_id}
+and \code{tip_id} columns identifying tips on which to root each family
+tree.}
     }
     \if{html}{\out{</div>}}
   }

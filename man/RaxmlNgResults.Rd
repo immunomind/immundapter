@@ -4,9 +4,10 @@
 \alias{RaxmlNgResults}
 \title{Parsed RAxML-NG results}
 \description{
-\code{RaxmlNgResults} provides tables that describe the family runs and tree
-files. Use \verb{$read_trees()} to read the trees as Newick strings. The tables
-stay on disk until you use \code{dplyr::collect()}.
+\code{RaxmlNgResults} provides tables that describe the family runs, trees, and
+ancestral-state files. Use \verb{$read_trees()} and
+\verb{$read_ancestral_trees()} to read trees as Newick strings. The tables stay on
+disk until you use \code{dplyr::collect()}.
 
 RAxML-NG trees cannot be added as columns to \code{ImmunData}.
 }
@@ -26,6 +27,15 @@ the analysis succeeded and where its files were saved.}
 
     \item{\code{tip_map}}{Read-only table with the original tip names and the shorter
 names used in RAxML-NG files.}
+
+    \item{\code{outgroups}}{Read-only table mapping requested outgroups to RAxML-NG tip
+names.}
+
+    \item{\code{ancestral_index}}{Read-only table with paths to successful ancestral
+outputs.}
+
+    \item{\code{failed_ancestral}}{Read-only table with one row per failed ancestral
+stage.}
   }
   \if{html}{\out{</div>}}
 }
@@ -33,6 +43,8 @@ names used in RAxML-NG files.}
 \subsection{Public methods}{
   \itemize{
     \item \href{#method-RaxmlNgResults-read_trees}{\code{RaxmlNgResults$read_trees()}}
+    \item \href{#method-RaxmlNgResults-read_ancestral_trees}{\code{RaxmlNgResults$read_ancestral_trees()}}
+    \item \href{#method-RaxmlNgResults-read_ancestral_states}{\code{RaxmlNgResults$read_ancestral_states()}}
   }
 }
 \if{html}{\out{<details open><summary>Inherited methods</summary>
@@ -63,6 +75,52 @@ reads every successful tree.}
   \subsection{Returns}{
     A named character vector of Newick strings. Vector names are the
 family names or numbers.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RaxmlNgResults-read_ancestral_trees"></a>}}
+\if{latex}{\out{\hypertarget{method-RaxmlNgResults-read_ancestral_trees}{}}}
+\subsection{\code{RaxmlNgResults$read_ancestral_trees()}}{
+  Read successful node-labelled ancestral trees as Newick strings.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RaxmlNgResults$read_ancestral_trees(families = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{families}}{Optional character vector of family names or numbers.
+\code{NULL} reads every successful ancestral tree.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A named character vector of Newick strings.
+  }
+}
+
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-RaxmlNgResults-read_ancestral_states"></a>}}
+\if{latex}{\out{\hypertarget{method-RaxmlNgResults-read_ancestral_states}{}}}
+\subsection{\code{RaxmlNgResults$read_ancestral_states()}}{
+  Read reconstructed internal-node sequences.
+  \subsection{Usage}{
+    \if{html}{\out{<div class="r">}}
+    \preformatted{RaxmlNgResults$read_ancestral_states(families = NULL)}
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Arguments}{
+    \if{html}{\out{<div class="arguments">}}
+    \describe{
+      \item{\code{families}}{Optional character vector of family names or numbers.
+\code{NULL} reads every successful ancestral-state file.}
+    }
+    \if{html}{\out{</div>}}
+  }
+  \subsection{Returns}{
+    A duckplyr table with \code{family_id}, \code{node_id}, and \code{sequence}.
   }
 }
 

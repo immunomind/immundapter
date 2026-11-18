@@ -67,8 +67,10 @@ test_that("AbstractTool exposes help instead of install", {
 
 test_that("AbstractTool runs with a file and explicit output directory", {
   root <- withr::local_tempdir()
+  withr::local_envvar(R_USER_CONFIG_DIR = root)
   input <- fs::path(root, "input.tsv")
   writeLines("value", input)
+  set_output_dir(fs::path(root, "default"))
   output_dir <- fs::path(root, "results")
   fixture <- make_test_tool()
 
@@ -121,25 +123,44 @@ test_that("ToolResults always exposes an informative annotate method", {
   )
 })
 
-test_that("AbstractTool defaults file runs directly to the user home", {
+test_that("AbstractTool requires a destination for file runs without a preference", {
   root <- withr::local_tempdir()
-  home <- fs::path(root, "home")
-  fs::dir_create(home)
-  withr::local_envvar(HOME = home)
+  withr::local_envvar(R_USER_CONFIG_DIR = root)
   input <- fs::path(root, "input.tsv")
   writeLines("value", input)
   fixture <- make_test_tool()
 
+  expect_error(fixture$tool$run(input), "set_output_dir()", fixed = TRUE)
+  expect_error(fixture$tool$run(input, output_dir = ""), "output_dir")
+  expect_false(fs::dir_exists(tools::R_user_dir("immundapter", "config")))
+})
+
+test_that("AbstractTool uses the saved absolute directory for file runs", {
+  root <- withr::local_tempdir()
+  withr::local_envvar(c(R_USER_CONFIG_DIR = root, R_FS_HOME = root))
+  input <- fs::path(root, "input.tsv")
+  writeLines("value", input)
+  fixture <- make_test_tool()
+  destination <- fs::path(root, "default runs")
+
+  withr::with_dir(root, set_output_dir("default runs"))
+  expect_false(fs::dir_exists(destination))
+
   run <- fixture$tool$run(input)
 
-  expect_equal(
-    as.character(fs::path_dir(run$path)),
-    as.character(fs::path_abs(home))
-  )
+  expect_equal(fs::path_real(fs::path_dir(run$path)), fs::path_real(destination))
+  expect_true(fs::dir_exists(run$path))
+
+  new_destination <- fs::path(root, "new runs")
+  expect_equal(set_output_dir("~/new runs"), new_destination)
+  run <- fixture$tool$run(input)
+  expect_equal(fs::path_real(fs::path_dir(run$path)), fs::path_real(new_destination))
 })
 
 test_that("AbstractTool uses the ImmunData snapshot artifacts path", {
   root <- withr::local_tempdir()
+  withr::local_envvar(R_USER_CONFIG_DIR = root)
+  set_output_dir(fs::path(root, "default"))
   artifacts_path <- fs::path(root, "artifacts", "analysis", "v001")
 
   TestImmunData <- R6::R6Class(
@@ -169,6 +190,9 @@ test_that("AbstractTool uses the ImmunData snapshot artifacts path", {
 })
 
 test_that("AbstractTool requires output_dir for unpersisted ImmunData", {
+  root <- withr::local_tempdir()
+  withr::local_envvar(R_USER_CONFIG_DIR = root)
+  set_output_dir(fs::path(root, "default"))
   TestImmunData <- R6::R6Class(
     classname = "ImmunData",
     public = list(

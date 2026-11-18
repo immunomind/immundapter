@@ -116,8 +116,9 @@
 #' @section Python setup:
 #'
 #' By default, immundapter uses a dedicated Python environment at
-#' `~/immundapter_data/environments/tcrdist3`. Call `tool$help()` to print the
-#' installation commands and `tool$check()` to verify the environment.
+#' `environments/tcrdist3` under `tools::R_user_dir("immundapter", "data")`.
+#' Call `tool$help()` to print the installation commands and `tool$check()`
+#' to verify the environment.
 #' `$help()` prints instructions; it does not install software.
 #'
 #' Set `IMMUNDAPTER_DATA` before creating the configuration to use another data
@@ -216,15 +217,7 @@ conf_tcrdist3 <- function(mode = c("cluster", "distance"),
                           run_args = list()) {
   mode <- match.arg(mode)
   if (is.null(python)) {
-    python <- immundapter_data_path(
-      "environments",
-      "tcrdist3",
-      if (.Platform$OS.type == "windows") {
-        fs::path("Scripts", "python.exe")
-      } else {
-        fs::path("bin", "python")
-      }
-    )
+    python <- tcrdist3_managed_python()
   }
 
   Tcrdist3ToolConfig$new(list(
@@ -318,6 +311,15 @@ Tcrdist3ToolConfig <- R6::R6Class(
 )
 
 
+tcrdist3_managed_python <- function() {
+  executable <- if (.Platform$OS.type == "windows") {
+    fs::path("Scripts", "python.exe")
+  } else {
+    fs::path("bin", "python")
+  }
+  immundapter_data_path("environments", "tcrdist3", executable, which = "data")
+}
+
 #' @noRd
 Tcrdist3Tool <- R6::R6Class(
   classname = "Tcrdist3Tool",
@@ -338,34 +340,25 @@ Tcrdist3Tool <- R6::R6Class(
       uv <- Sys.which("uv")
       configured_python <- private$.config$python
 
-      unix_uv <- "curl -LsSf https://astral.sh/uv/install.sh | sh"
-      unix_env <- paste0(
-        'uv venv "',
-        "${IMMUNDAPTER_DATA:-$HOME/immundapter_data}",
-        '/environments/tcrdist3"'
-      )
-      unix_tcrdist3 <- paste0(
-        'uv pip install --python "',
-        "${IMMUNDAPTER_DATA:-$HOME/immundapter_data}",
-        '/environments/tcrdist3/bin/python" tcrdist3==0.3'
-      )
-      windows_uv <- paste0(
-        'powershell -ExecutionPolicy ByPass -c "',
-        'irm https://astral.sh/uv/install.ps1 | iex"'
-      )
-      windows_data <- paste0(
-        "$data = if ($env:IMMUNDAPTER_DATA) ",
-        "{ $env:IMMUNDAPTER_DATA } else ",
-        '{ "$HOME\\immundapter_data" }'
-      )
-      windows_env <- paste0(
-        "uv venv ",
-        '"$data\\environments\\tcrdist3"'
-      )
-      windows_tcrdist3 <- paste0(
-        "uv pip install --python ",
-        '"$data\\environments\\tcrdist3\\Scripts\\python.exe" ',
-        "tcrdist3==0.3"
+      if (.Platform$OS.type == "windows") {
+        install_uv <- paste0(
+          'powershell -ExecutionPolicy ByPass -c "',
+          'irm https://astral.sh/uv/install.ps1 | iex"'
+        )
+        shell <- "Windows PowerShell"
+        quote_path <- function(path) {
+          paste0("'", gsub("'", "''", path, fixed = TRUE), "'")
+        }
+      } else {
+        install_uv <- "curl -LsSf https://astral.sh/uv/install.sh | sh"
+        shell <- "a macOS or Linux terminal"
+        quote_path <- shQuote
+      }
+      managed_python <- tcrdist3_managed_python()
+      environment_dir <- fs::path_dir(fs::path_dir(managed_python))
+      create_env <- paste("uv venv", quote_path(environment_dir))
+      install_tcrdist3 <- paste(
+        "uv pip install --python", quote_path(managed_python), "tcrdist3==0.3"
       )
       uv_documentation <- paste0(
         "https://docs.astral.sh/uv/getting-started/",
@@ -421,50 +414,26 @@ Tcrdist3Tool <- R6::R6Class(
         ol = list("margin-left" = 2),
         ul = list("margin-left" = 2)
       ))
-      platforms <- cli::cli_ul(.close = FALSE)
-
-      cli::cli_li("{.strong macOS and Linux}")
+      cli::cli_inform("Run these commands in {shell}.")
       steps <- cli::cli_ol(.close = FALSE)
       cli::cli_li("Install {.pkg uv}.")
       commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {unix_uv}}")
+      cli::cli_li("{.code {install_uv}}")
       cli::cli_end(commands)
       cli::cli_li("Create the Python environment.")
       commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {unix_env}}")
+      cli::cli_li("{.code {create_env}}")
       cli::cli_end(commands)
       cli::cli_li("Install {.pkg tcrdist3} into the environment.")
       commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {unix_tcrdist3}}")
+      cli::cli_li("{.code {install_tcrdist3}}")
       cli::cli_end(commands)
       cli::cli_end(steps)
-
-      cli::cli_li("{.strong Windows PowerShell}")
-      steps <- cli::cli_ol(.close = FALSE)
-      cli::cli_li("Install {.pkg uv}.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {windows_uv}}")
-      cli::cli_end(commands)
-      cli::cli_li("Set the data-directory variable for this session.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {windows_data}}")
-      cli::cli_end(commands)
-      cli::cli_li("Create the Python environment.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {windows_env}}")
-      cli::cli_end(commands)
-      cli::cli_li("Install {.pkg tcrdist3} into the environment.")
-      commands <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {windows_tcrdist3}}")
-      cli::cli_end(commands)
-      cli::cli_end(steps)
-
-      cli::cli_end(platforms)
       cli::cli_end(div)
 
       cli::cli_inform(c(
         "i" = paste0(
-          "Set {.envvar IMMUNDAPTER_DATA} before running the commands ",
+          "Set {.envvar IMMUNDAPTER_DATA} before creating the tool ",
           "to use another data directory."
         )
       ))

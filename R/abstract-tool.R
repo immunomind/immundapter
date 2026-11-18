@@ -68,13 +68,14 @@ AbstractTool <- R6::R6Class(
     #' Validate input, run the external tool, and record its outputs.
     #' @param input Input accepted by the concrete external-tool adapter.
     #' @param config Optional configuration overriding the tool default.
-    #' @param output_dir Optional directory in which to create the run
-    #'   directory.
+    #' @param output_dir Directory in which to create the run directory. File
+    #'   inputs can use a default saved with [immundapter::set_output_dir()]. Saved
+    #'   `ImmunData` inputs default to the snapshot's artifacts directory.
     #' @param ... Additional arguments passed to the concrete input validation
     #'   and run implementations.
     #' @return A [ToolRun] object describing the completed run.
     run = function(input, config = NULL, output_dir = NULL, ...) {
-      checkmate::assert_string(output_dir, null.ok = TRUE)
+      checkmate::assert_string(output_dir, min.chars = 1L, null.ok = TRUE)
 
       if (is.null(config)) {
         config <- private$.config
@@ -171,7 +172,14 @@ resolve_tool_output_dir <- function(input, output_dir) {
   }
 
   if (!inherits(input, "ImmunData")) {
-    return(fs::path_home())
+    output_dir <- read_saved_output_dir()
+    if (is.null(output_dir)) {
+      rlang::abort(paste(
+        "Supply `output_dir` for file-based inputs (for example, `tempdir()`)",
+        "or save a default with `set_output_dir()`."
+      ))
+    }
+    return(output_dir)
   }
 
   artifacts_path <- input$provenance$artifacts_path

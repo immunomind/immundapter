@@ -112,8 +112,9 @@ invisibly when applicable.
     \describe{
       \item{\code{input}}{Input accepted by the concrete external-tool adapter.}
       \item{\code{config}}{Optional configuration overriding the tool default.}
-      \item{\code{output_dir}}{Optional directory in which to create the run
-directory.}
+      \item{\code{output_dir}}{Directory in which to create the run directory. File
+inputs can use a default saved with \code{\link[=set_output_dir]{set_output_dir()}}. Saved
+\code{ImmunData} inputs default to the snapshot's artifacts directory.}
       \item{\code{...}}{Additional arguments passed to the concrete input validation
 and run implementations.}
     }

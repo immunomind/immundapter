@@ -234,6 +234,78 @@ test_that("RAxML-NG builds search and fast command arguments", {
 })
 
 
+test_that("RAxML-NG builds ancestral command arguments without outgroups", {
+  config <- conf_raxml_ng(
+    model = "HKY+G",
+    seed = 11,
+    threads = 3,
+    ancestral = TRUE
+  )
+  ancestral <- raxml_ng_command_args(
+    config,
+    "/tmp/alignment.fasta",
+    "/tmp/ancestral",
+    tree_path = "/tmp/result.raxml.bestTree"
+  )
+
+  expect_equal(ancestral[[1L]], "--ancestral")
+  expect_equal(
+    ancestral[match("--tree", ancestral) + 1L],
+    shQuote("/tmp/result.raxml.bestTree")
+  )
+  expect_false("--outgroup" %in% ancestral)
+  expect_equal(ancestral[match("--seed", ancestral) + 1L], "11")
+  expect_equal(ancestral[match("--threads", ancestral) + 1L], "3")
+})
+
+
+test_that("RAxML-NG validates explicit family outgroups", {
+  prepared <- raxml_ng_collect_input(
+    make_raxml_test_idata(),
+    conf_raxml_ng(),
+    raxml_test_additional_tips() |>
+      dplyr::filter(family_id == "family-a")
+  )
+  outgroups <- data.frame(
+    family_id = "family-a",
+    tip_id = "family-a__germline"
+  ) |>
+    duckplyr::as_duckdb_tibble()
+
+  expect_equal(
+    raxml_ng_prepare_outgroups(outgroups, prepared),
+    data.frame(
+      family_id = "family-a",
+      tip_id = "family-a__germline"
+    )
+  )
+  expect_error(
+    raxml_ng_prepare_outgroups(
+      data.frame(family_id = "missing", tip_id = "germline"),
+      prepared
+    ),
+    "unknown family",
+    fixed = TRUE
+  )
+  expect_error(
+    raxml_ng_prepare_outgroups(
+      data.frame(family_id = "family-a", tip_id = "missing"),
+      prepared
+    ),
+    "unknown tip",
+    fixed = TRUE
+  )
+  expect_error(
+    raxml_ng_prepare_outgroups(
+      prepared[c("family_id", "tip_id")],
+      prepared
+    ),
+    "retain at least one ingroup tip",
+    fixed = TRUE
+  )
+})
+
+
 test_that("RAxML-NG parses complete non-overlapping partitions", {
   partitions <- raxml_ng_parse_partitions("IGH=1-300;IGK=301-540", 540)
 
@@ -272,15 +344,14 @@ test_that("RAxML-NG parses complete non-overlapping partitions", {
 })
 
 
-test_that("RAxML-NG writes and selects a per-family model file", {
+test_that("RAxML-NG selects a per-family model file", {
   config <- conf_raxml_ng(
     model = "GTR+G",
     partition_col = "partitions",
     brlen = "scaled"
   )
   path <- withr::local_tempfile()
-  partitions <- raxml_ng_parse_partitions("IGH=1-3;IGK=4-6", 6)
-  raxml_ng_write_model_file(partitions, config$model, path)
+  writeLines(c("GTR+G, IGH = 1-3", "GTR+G, IGK = 4-6"), path)
   args <- raxml_ng_command_args(
     config,
     "/tmp/alignment.fasta",

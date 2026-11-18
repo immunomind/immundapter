@@ -3,7 +3,7 @@
 #' RAxML-NG builds a phylogenetic tree for each sequence family. This
 #' tool takes aligned nucleotide sequences from [immundata::ImmunData] and
 #' runs each family independently. It does not define families, align sequences,
-#' add germlines, or root trees. Complete those steps before running RAxML-NG.
+#' or reconstruct germlines. Complete those steps before running RAxML-NG.
 #'
 #' @section Input to `tool$run()`:
 #' `tool$run()` accepts one [immundata::ImmunData] dataset. It does not accept a
@@ -28,6 +28,12 @@
 #' specification; when omitted, that specification is inherited. Additional
 #' tips are never added to or joined into `ImmunData`.
 #'
+#' `outgroups` optionally identifies one or more existing tips per family. It
+#' must be a data frame or duckplyr table with `family_id` and `tip_id` columns.
+#' The identified tips may come from `ImmunData` or `additional_tips`. RAxML-NG
+#' output is rooted by the adapter, which writes a rooted copy of each
+#' successful tree while preserving the raw RAxML-NG tree.
+#'
 #' `locus` selects the receptor chain used for the tree. With paired
 #' receptors, only the selected chain is used. The selected locus must agree
 #' with the chains stored in the `ImmunData` dataset.
@@ -44,11 +50,15 @@
 #' - **`"search"`:** Standard maximum-likelihood tree search.
 #' - **`"fast"`:** Faster tree search.
 #'
-#' Modes that use existing trees or produce other types of output,
-#' including `evaluate`, `bootstrap`, `support`, and `ancestral`, are not part
-#' of this tool. The default nucleotide model is `GTR+G`. Set `seed` and
-#' `threads` for reproducible execution, or omit them to retain RAxML-NG's
-#' defaults. Partitioned analyses default to scaled branch-length linkage.
+#' Set `ancestral = TRUE` to run RAxML-NG ancestral-state reconstruction after
+#' each successful family tree. This produces a node-labelled tree, reconstructed
+#' internal-node sequences, and marginal state probabilities. A failed
+#' ancestral stage does not discard the successful family tree. Other modes
+#' that use existing trees or produce other types of output, including
+#' `evaluate`, `bootstrap`, and `support`, are not part of this tool. The
+#' default nucleotide model is `GTR+G`. Set `seed` and `threads` for
+#' reproducible execution, or omit them to retain RAxML-NG's defaults.
+#' Partitioned analyses default to scaled branch-length linkage.
 #'
 #' @section Output from `tool$run()`:
 #' `tool$run()` returns a [RaxmlNgRun]. It records where the results were
@@ -65,8 +75,15 @@
 #'   and diagnostic message.
 #' - **`results$tip_map`:** The original value from `tip_col` and the shorter
 #'   tip label used in the RAxML-NG files.
+#' - **`results$outgroups`:** The original and internal outgroup tip names.
+#' - **`results$ancestral_index`:** Paths to successful ancestral-state files.
+#' - **`results$failed_ancestral`:** Families whose optional ancestral stage
+#'   failed, with diagnostics.
 #' - **`results$read_trees()`:** One Newick tree per family, returned as a named
-#'   character vector. The vector names are the family values.
+#'   character vector. When outgroups were supplied, these are rooted copies.
+#' - **`results$read_ancestral_trees()`:** Node-labelled ancestral trees.
+#' - **`results$read_ancestral_states()`:** A duckplyr table of reconstructed
+#'   internal-node sequences.
 #'
 #' Tree files remain in the run directory. Trees cannot be added as columns to
 #' `ImmunData`. Use `$read_trees()`, `$tree_index`, or `$tip_map` for downstream
@@ -75,7 +92,7 @@
 #' Each family has its own directory containing the prepared FASTA file,
 #' optional partition file, RAxML-NG output, and log files. A failed family does
 #' not discard successful results. The returned run has status `"partial"` when
-#' one or more attempted families fail.
+#' one or more tree or requested ancestral stages fail.
 #'
 #' @param alignment_col Name of the column containing the aligned
 #'   nucleotide sequence for each tree tip. This is not IgBLAST's AIRR
@@ -95,6 +112,8 @@
 #'   RAxML-NG default.
 #' @param threads Optional positive integer thread count. `NULL` retains the
 #'   RAxML-NG automatic default.
+#' @param ancestral Whether to run RAxML-NG ancestral-state reconstruction on
+#'   every successfully inferred family tree.
 #' @param partition_col Optional column containing one partition specification
 #'   per family.
 #' @param brlen Optional branch-length linkage mode: `"linked"`, `"scaled"`,
@@ -105,7 +124,29 @@
 #' @return `conf_raxml_ng()` returns a read-only [RaxmlNgToolConfig].
 #'   `tool_raxml_ng()` returns a reusable [RaxmlNgTool].
 #'
-#' @examplesIf interactive()
+#' @examplesIf identical(Sys.getenv("IMD_RUN_EXAMPLES"), "true")
+#' sequences <- c(
+#'   "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
+#'   "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGA",
+#'   "ACGTACGTACGTACGTACGTACGTACGTACGTACGTTCGT",
+#'   "ACGTACGTACGTACGTACGTACGTACGTACGTTCGTACGT"
+#' )
+#' input_file <- tempfile(fileext = ".tsv")
+#' utils::write.table(data.frame(
+#'   cell_id = paste0("cell-", seq_along(sequences)),
+#'   locus = "IGH", sequence = sequences, clone_id = "family-a",
+#'   clone_sequence_alignment = sequences, duplicate_count = 1L
+#' ), input_file, sep = "\t", row.names = FALSE, quote = FALSE)
+#' idata <- immundata::read_repertoires(
+#'   path = input_file,
+#'   schema = immundata::make_receptor_schema(
+#'     features = "sequence", chains = "IGH"
+#'   ),
+#'   barcode_col = "cell_id", locus_col = "locus",
+#'   umi_col = "duplicate_count", repertoire_schema = NULL,
+#'   preprocess = NULL, postprocess = NULL, rename_columns = NULL,
+#'   output_folder = tempfile("raxml-immundata-")
+#' )
 #' config <- conf_raxml_ng(
 #'   alignment_col = "clone_sequence_alignment",
 #'   family_col = "clone_id",
@@ -114,7 +155,7 @@
 #' tool <- tool_raxml_ng(config)
 #' tool$check()
 #'
-#' run <- tool$run(idata, output_dir = "analysis/raxml-ng")
+#' run <- tool$run(idata, output_dir = tempfile("raxml-ng-run-"))
 #' results <- run$results()
 #' dplyr::collect(results$tree_index)
 #' trees <- results$read_trees()
@@ -131,6 +172,7 @@ conf_raxml_ng <- function(alignment_col = "clone_sequence_alignment",
                           model = "GTR+G",
                           seed = NULL,
                           threads = NULL,
+                          ancestral = FALSE,
                           partition_col = NULL,
                           brlen = NULL) {
   analysis <- match.arg(analysis)
@@ -147,6 +189,7 @@ conf_raxml_ng <- function(alignment_col = "clone_sequence_alignment",
     model = model,
     seed = seed,
     threads = threads,
+    ancestral = ancestral,
     partition_col = partition_col,
     brlen = brlen
   ))
@@ -177,6 +220,7 @@ tool_raxml_ng <- function(config = conf_raxml_ng()) {
 #' @field model RAxML-NG nucleotide model.
 #' @field seed Optional RAxML-NG random seed.
 #' @field threads Optional RAxML-NG thread count.
+#' @field ancestral Whether to reconstruct internal-node ancestral states.
 #' @field partition_col Optional partition-specification column.
 #' @field brlen Optional partition branch-length linkage mode.
 RaxmlNgToolConfig <- R6::R6Class(
@@ -192,6 +236,7 @@ RaxmlNgToolConfig <- R6::R6Class(
     model = NULL,
     seed = NULL,
     threads = NULL,
+    ancestral = NULL,
     partition_col = NULL,
     brlen = NULL,
     #' @description
@@ -199,7 +244,6 @@ RaxmlNgToolConfig <- R6::R6Class(
     #' [conf_raxml_ng()] instead.
     #' @param values A named list of RAxML-NG settings.
     initialize = function(values) {
-      checkmate::assert_list(values, names = "unique")
       checkmate::assert_string(values$alignment_col, min.chars = 1L)
       checkmate::assert_string(values$family_col, min.chars = 1L)
       checkmate::assert_string(values$tip_col, min.chars = 1L)
@@ -229,6 +273,7 @@ RaxmlNgToolConfig <- R6::R6Class(
       }
       checkmate::assert_count(values$seed, positive = TRUE, null.ok = TRUE)
       checkmate::assert_count(values$threads, positive = TRUE, null.ok = TRUE)
+      checkmate::assert_flag(values$ancestral)
       checkmate::assert_choice(
         values$brlen,
         c("linked", "scaled", "unlinked"),
@@ -254,7 +299,8 @@ RaxmlNgToolConfig <- R6::R6Class(
 #'
 #' - **`$help()`:** Print installation instructions.
 #' - **`$check()`:** Check whether RAxML-NG is installed and report its version.
-#' - **`$run(input, config = NULL, output_dir = NULL, additional_tips = NULL)`:**
+#' - **`$run(input, config = NULL, output_dir = NULL, additional_tips = NULL,
+#'   outgroups = NULL)`:**
 #'   Prepare one FASTA alignment per family, run RAxML-NG, and return a
 #'   [RaxmlNgRun].
 #' - **`$citation()`:** Reserved for future citation support.
@@ -280,15 +326,20 @@ RaxmlNgTool <- R6::R6Class(
     #' @param additional_tips Optional data frame or duckplyr table with
     #'   `family_id`, `tip_id`, `aligned_sequence`, and optionally
     #'   `partition_spec` columns.
+    #' @param outgroups Optional data frame or duckplyr table with `family_id`
+    #'   and `tip_id` columns identifying tips on which to root each family
+    #'   tree.
     run = function(input,
                    config = NULL,
                    output_dir = NULL,
-                   additional_tips = NULL) {
+                   additional_tips = NULL,
+                   outgroups = NULL) {
       super$run(
         input,
         config = config,
         output_dir = output_dir,
-        additional_tips = additional_tips
+        additional_tips = additional_tips,
+        outgroups = outgroups
       )
     }
   ),
@@ -296,58 +347,13 @@ RaxmlNgTool <- R6::R6Class(
     help_impl = function() {
       releases <- "https://codeberg.org/amkozlov/raxml-ng/releases"
       source <- "https://github.com/amkozlov/raxml-ng"
-      brew <- "brew install raxml-ng"
-      wsl <- "wsl --install"
-
-      cli::cli_inform(c("i" = "Install RAxML-NG:"))
-      div <- cli::cli_div(theme = list(
-        ol = list("margin-left" = 2),
-        ul = list("margin-left" = 2)
-      ))
-      platforms <- cli::cli_ul(.close = FALSE)
-
-      cli::cli_li("{.strong macOS}")
-      steps <- cli::cli_ol(.close = FALSE)
-      cli::cli_li("Choose an installation method.")
-      details <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("Homebrew: {.code {brew}}")
-      cli::cli_li("Download the macOS binary: {.url {releases}}")
-      cli::cli_end(details)
-      cli::cli_end(steps)
-
-      cli::cli_li("{.strong Linux}")
-      steps <- cli::cli_ol(.close = FALSE)
-      cli::cli_li("Download the Linux binary.")
-      details <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.url {releases}}")
-      cli::cli_end(details)
-      cli::cli_end(steps)
-
-      cli::cli_li("{.strong Windows}")
-      steps <- cli::cli_ol(.close = FALSE)
-      cli::cli_li("Install Windows Subsystem for Linux.")
-      details <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.code {wsl}}")
-      cli::cli_end(details)
-      cli::cli_li("Use the Linux binary inside WSL.")
-      details <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.url {releases}}")
-      cli::cli_end(details)
-      cli::cli_end(steps)
-
-      cli::cli_end(platforms)
-      cli::cli_end(div)
-
       cli::cli_inform(c(
-        "i" = "Source builds and complete instructions:"
+        "i" = "Install RAxML-NG:",
+        "*" = "macOS: {.code brew install raxml-ng}, or download the binary from {.url {releases}}.",
+        "*" = "Linux: download the binary from {.url {releases}}.",
+        "*" = "Windows: run {.code wsl --install}, then use the Linux binary from {.url {releases}}.",
+        "i" = "Source builds and complete instructions: {.url {source}}"
       ))
-      div <- cli::cli_div(theme = list(
-        ul = list("margin-left" = 2)
-      ))
-      links <- cli::cli_ul(.close = FALSE)
-      cli::cli_li("{.url {source}}")
-      cli::cli_end(links)
-      cli::cli_end(div)
     },
     check_impl = function() {
       path <- raxml_ng_executable()
@@ -379,33 +385,42 @@ RaxmlNgTool <- R6::R6Class(
     },
     validate_input_impl = function(input,
                                    config,
-                                   additional_tips = NULL) {
+                                   additional_tips = NULL,
+                                   outgroups = NULL) {
       if (!inherits(input, "ImmunData")) {
         rlang::abort(
           "RAxML-NG input must be an `immundata::ImmunData` object."
         )
       }
-      checkmate::assert_r6(input, classes = "ImmunData")
-      observed <- raxml_ng_prepare_immundata(input, config)
-      raxml_ng_prepare_additional_tips(additional_tips, observed, config)
       input
     },
     run_impl = function(input,
                         config,
                         run_dir,
-                        additional_tips = NULL) {
+                        additional_tips = NULL,
+                        outgroups = NULL) {
       executable <- raxml_ng_executable()
       if (!nzchar(executable)) {
         rlang::abort("The RAxML-NG executable `raxml-ng` was not found.")
       }
 
       prepared <- raxml_ng_collect_input(input, config, additional_tips)
+      outgroups <- raxml_ng_prepare_outgroups(outgroups, prepared)
       input_path <- fs::path(run_dir, "raxml-ng-input.tsv")
       config_path <- fs::path(run_dir, "raxml-ng-config.json")
       families_path <- fs::path(run_dir, "raxml-ng-families.tsv")
       tree_index_path <- fs::path(run_dir, "raxml-ng-tree-index.tsv")
       failed_path <- fs::path(run_dir, "raxml-ng-failed-families.tsv")
       tip_map_path <- fs::path(run_dir, "raxml-ng-tip-map.tsv")
+      outgroups_path <- fs::path(run_dir, "raxml-ng-outgroups.tsv")
+      ancestral_index_path <- fs::path(
+        run_dir,
+        "raxml-ng-ancestral-index.tsv"
+      )
+      failed_ancestral_path <- fs::path(
+        run_dir,
+        "raxml-ng-failed-ancestral.tsv"
+      )
       families_dir <- fs::path(run_dir, "families")
       fs::dir_create(families_dir)
 
@@ -420,12 +435,21 @@ RaxmlNgTool <- R6::R6Class(
       family_ids <- sort(unique(prepared$family_id))
       family_records <- vector("list", length(family_ids))
       tip_maps <- vector("list", length(family_ids))
+      outgroup_maps <- vector("list", length(family_ids))
       normalized <- vector("list", length(family_ids))
 
       for (family_index in seq_along(family_ids)) {
         family_id <- family_ids[[family_index]]
         family <- prepared[prepared$family_id == family_id, , drop = FALSE]
         family$raxml_tip <- sprintf("tip_%06d", seq_len(nrow(family)))
+        family_outgroups <- outgroups[
+          outgroups$family_id == family_id,
+          ,
+          drop = FALSE
+        ]
+        outgroup_tips <- family$raxml_tip[
+          match(family_outgroups$tip_id, family$tip_id)
+        ]
         family_name <- sprintf("family-%06d", family_index)
         family_dir <- fs::path(families_dir, family_name)
         fs::dir_create(family_dir)
@@ -439,6 +463,7 @@ RaxmlNgTool <- R6::R6Class(
         stdout_path <- fs::path(family_dir, "stdout.log")
         stderr_path <- fs::path(family_dir, "stderr.log")
         best_tree <- paste0(prefix, ".raxml.bestTree")
+        rooted_tree <- fs::path(family_dir, "result.rootedTree")
         log_path <- paste0(prefix, ".raxml.log")
         alignment_lengths <- unique(nchar(family$aligned_sequence))
 
@@ -446,6 +471,13 @@ RaxmlNgTool <- R6::R6Class(
           family_id = family_id,
           raxml_tip = family$raxml_tip,
           tip_id = family$tip_id,
+          is_outgroup = family$raxml_tip %in% outgroup_tips,
+          stringsAsFactors = FALSE
+        )
+        outgroup_maps[[family_index]] <- data.frame(
+          family_id = rep(family_id, length(outgroup_tips)),
+          tip_id = family_outgroups$tip_id,
+          raxml_tip = outgroup_tips,
           stringsAsFactors = FALSE
         )
         normalized[[family_index]] <- family[c(
@@ -462,10 +494,16 @@ RaxmlNgTool <- R6::R6Class(
             family$partition_spec[[1L]],
             alignment_lengths[[1L]]
           )
-          raxml_ng_write_model_file(
-            partitions,
-            config$model,
-            model_path
+          writeLines(
+            sprintf(
+              "%s, %s = %.0f-%.0f",
+              config$model,
+              partitions$name,
+              partitions$start,
+              partitions$end
+            ),
+            model_path,
+            useBytes = TRUE
           )
         }
         args <- raxml_ng_command_args(
@@ -475,7 +513,7 @@ RaxmlNgTool <- R6::R6Class(
           model_path
         )
 
-        command <- raxml_ng_format_command(executable, args)
+        command <- paste(c(shQuote(executable), args), collapse = " ")
         exit_status <- tryCatch(
           raxml_ng_execute(
             executable,
@@ -494,23 +532,131 @@ RaxmlNgTool <- R6::R6Class(
         if (isTRUE(exit_status == 0L) && fs::file_exists(best_tree)) {
           status <- "success"
         } else {
-          log_lines <- character()
-          for (path in c(stderr_path, stdout_path)) {
-            if (fs::file_exists(path)) {
-              log_lines <- c(log_lines, readLines(path, warn = FALSE))
-            }
+          error <- raxml_ng_execution_error(
+            exit_status,
+            c(stderr_path, stdout_path),
+            "RAxML-NG did not produce a best-tree file."
+          )
+        }
+        if (status == "success" && length(outgroup_tips) > 0L) {
+          root_error <- tryCatch(
+            {
+              raxml_ng_root_tree(best_tree, rooted_tree, outgroup_tips)
+              NULL
+            },
+            error = function(condition) conditionMessage(condition)
+          )
+          if (!is.null(root_error)) {
+            status <- "failed"
+            error <- gsub(
+              "[\t\r\n]+",
+              " ",
+              paste("Tree rooting failed:", root_error)
+            )
           }
-          log_lines <- log_lines[nzchar(log_lines)]
-          error <- if (length(log_lines) == 0L) {
-            if (isTRUE(exit_status == 0L)) {
-              "RAxML-NG did not produce a best-tree file."
-            } else {
-              sprintf("RAxML-NG exited with status %s.", exit_status)
+        }
+
+        tree_path <- if (status == "success") {
+          if (length(outgroup_tips) > 0L) rooted_tree else best_tree
+        } else {
+          NA_character_
+        }
+
+        ancestral_status <- if (config$ancestral) {
+          "skipped"
+        } else {
+          "not_requested"
+        }
+        ancestral_prefix <- fs::path(family_dir, "ancestral")
+        ancestral_stdout <- fs::path(family_dir, "ancestral-stdout.log")
+        ancestral_stderr <- fs::path(family_dir, "ancestral-stderr.log")
+        raw_ancestral_tree <- paste0(
+          ancestral_prefix,
+          ".raxml.ancestralTree"
+        )
+        rooted_ancestral_tree <- fs::path(
+          family_dir,
+          "ancestral.rootedTree"
+        )
+        ancestral_states <- paste0(
+          ancestral_prefix,
+          ".raxml.ancestralStates"
+        )
+        ancestral_probabilities <- paste0(
+          ancestral_prefix,
+          ".raxml.ancestralProbs"
+        )
+        ancestral_log <- paste0(ancestral_prefix, ".raxml.log")
+        ancestral_command <- NA_character_
+        ancestral_exit_status <- NA_integer_
+        ancestral_error <- NA_character_
+        ancestral_tree <- NA_character_
+
+        if (config$ancestral && status == "success") {
+          ancestral_args <- raxml_ng_command_args(
+            config,
+            alignment_path,
+            ancestral_prefix,
+            model_path,
+            best_tree
+          )
+          ancestral_command <- paste(
+            c(shQuote(executable), ancestral_args),
+            collapse = " "
+          )
+          ancestral_exit_status <- tryCatch(
+            raxml_ng_execute(
+              executable,
+              ancestral_args,
+              ancestral_stdout,
+              ancestral_stderr
+            ),
+            error = function(condition) {
+              writeLines(conditionMessage(condition), ancestral_stderr)
+              1L
             }
+          )
+          expected <- c(
+            raw_ancestral_tree,
+            ancestral_states,
+            ancestral_probabilities
+          )
+          if (isTRUE(ancestral_exit_status == 0L) &&
+              all(fs::file_exists(expected))) {
+            ancestral_status <- "success"
+            ancestral_tree <- raw_ancestral_tree
           } else {
-            paste(tail(log_lines, 20L), collapse = " | ")
+            ancestral_status <- "failed"
+            ancestral_error <- raxml_ng_execution_error(
+              ancestral_exit_status,
+              c(ancestral_stderr, ancestral_stdout),
+              "RAxML-NG did not produce all ancestral-state files."
+            )
           }
-          error <- gsub("[\t\r\n]+", " ", error)
+          if (ancestral_status == "success" && length(outgroup_tips) > 0L) {
+            root_error <- tryCatch(
+              {
+                raxml_ng_root_tree(
+                  raw_ancestral_tree,
+                  rooted_ancestral_tree,
+                  outgroup_tips
+                )
+                NULL
+              },
+              error = function(condition) conditionMessage(condition)
+            )
+            if (is.null(root_error)) {
+              ancestral_tree <- rooted_ancestral_tree
+            } else {
+              ancestral_status <- "failed"
+              ancestral_tree <- NA_character_
+              ancestral_error <- gsub(
+                "[\t\r\n]+",
+                " ",
+                paste("Ancestral-tree rooting failed:", root_error)
+              )
+            }
+          }
         }
 
         family_records[[family_index]] <- data.frame(
@@ -518,6 +664,7 @@ RaxmlNgTool <- R6::R6Class(
           family_index = family_index,
           status = status,
           n_tips = nrow(family),
+          n_outgroups = length(outgroup_tips),
           alignment_length = alignment_lengths,
           alignment = as.character(alignment_path),
           model_file = if (is.null(model_path)) {
@@ -525,21 +672,36 @@ RaxmlNgTool <- R6::R6Class(
           } else {
             as.character(model_path)
           },
-          best_tree = if (fs::file_exists(best_tree)) {
-            as.character(best_tree)
-          } else {
-            NA_character_
-          },
-          raxml_log = if (fs::file_exists(log_path)) {
-            as.character(log_path)
-          } else {
-            NA_character_
-          },
+          best_tree = raxml_ng_existing_path(best_tree),
+          rooted_tree = raxml_ng_existing_path(rooted_tree),
+          tree = tree_path,
+          raxml_log = raxml_ng_existing_path(log_path),
           stdout = as.character(stdout_path),
           stderr = as.character(stderr_path),
           command = command,
           exit_status = as.integer(exit_status),
           error = error,
+          ancestral_status = ancestral_status,
+          ancestral_tree = ancestral_tree,
+          raw_ancestral_tree = raxml_ng_existing_path(raw_ancestral_tree),
+          ancestral_states = raxml_ng_existing_path(ancestral_states),
+          ancestral_probabilities = raxml_ng_existing_path(
+            ancestral_probabilities
+          ),
+          ancestral_log = raxml_ng_existing_path(ancestral_log),
+          ancestral_stdout = if (config$ancestral && status == "success") {
+            as.character(ancestral_stdout)
+          } else {
+            NA_character_
+          },
+          ancestral_stderr = if (config$ancestral && status == "success") {
+            as.character(ancestral_stderr)
+          } else {
+            NA_character_
+          },
+          ancestral_command = ancestral_command,
+          ancestral_exit_status = as.integer(ancestral_exit_status),
+          ancestral_error = ancestral_error,
           stringsAsFactors = FALSE
         )
       }
@@ -547,11 +709,13 @@ RaxmlNgTool <- R6::R6Class(
       normalized <- do.call(rbind, normalized)
       family_records <- do.call(rbind, family_records)
       tip_maps <- do.call(rbind, tip_maps)
+      outgroup_maps <- do.call(rbind, outgroup_maps)
       tree_index <- family_records[
         family_records$status == "success",
         c(
-          "family_id", "family_index", "n_tips", "alignment_length",
-          "best_tree", "raxml_log"
+          "family_id", "family_index", "n_tips", "n_outgroups",
+          "alignment_length", "tree", "best_tree", "rooted_tree",
+          "raxml_log"
         ),
         drop = FALSE
       ]
@@ -559,8 +723,26 @@ RaxmlNgTool <- R6::R6Class(
         family_records$status == "failed",
         c(
           "family_id", "family_index", "n_tips", "alignment_length",
-          "alignment", "model_file", "stdout", "stderr", "command",
-          "exit_status", "error"
+          "alignment", "model_file", "best_tree", "rooted_tree", "stdout",
+          "stderr", "command", "exit_status", "error"
+        ),
+        drop = FALSE
+      ]
+      ancestral_index <- family_records[
+        family_records$ancestral_status == "success",
+        c(
+          "family_id", "family_index", "ancestral_tree",
+          "raw_ancestral_tree", "ancestral_states",
+          "ancestral_probabilities", "ancestral_log"
+        ),
+        drop = FALSE
+      ]
+      failed_ancestral <- family_records[
+        family_records$ancestral_status == "failed",
+        c(
+          "family_id", "family_index", "alignment", "best_tree",
+          "ancestral_stdout", "ancestral_stderr", "ancestral_command",
+          "ancestral_exit_status", "ancestral_error"
         ),
         drop = FALSE
       ]
@@ -570,6 +752,9 @@ RaxmlNgTool <- R6::R6Class(
       utils::write.table(tree_index, file = tree_index_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
       utils::write.table(failed, file = failed_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
       utils::write.table(tip_maps, file = tip_map_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
+      utils::write.table(outgroup_maps, file = outgroups_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
+      utils::write.table(ancestral_index, file = ancestral_index_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
+      utils::write.table(failed_ancestral, file = failed_ancestral_path, sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 
       artifacts <- list(
         input = input_path,
@@ -577,9 +762,14 @@ RaxmlNgTool <- R6::R6Class(
         families = families_path,
         tree_index = tree_index_path,
         failed_families = failed_path,
-        tip_map = tip_map_path
+        tip_map = tip_map_path,
+        outgroups = outgroups_path,
+        ancestral_index = ancestral_index_path,
+        failed_ancestral = failed_ancestral_path
       )
-      attr(artifacts, "run_status") <- if (nrow(failed) > 0L) {
+      attr(artifacts, "run_status") <- if (
+        nrow(failed) > 0L || nrow(failed_ancestral) > 0L
+      ) {
         "partial"
       } else {
         "success"

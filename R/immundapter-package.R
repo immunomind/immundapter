@@ -14,10 +14,13 @@
 #' results <- run$results()
 #' ```
 #'
-#' The accepted `input` is different for each tool. See [tcrdist3], [igblast],
-#' [immgliph], or [raxml-ng] for exact input columns and result fields. The
-#' `$run()` records where the files were saved. Use `$results()` to read the
-#' biological output.
+#' The accepted `input` is different for each tool. See [tool_tcrdist3()],
+#' [tool_igblast()], [immgliph], or [raxml-ng] for exact input columns and
+#' result fields. The `$run()` records where the files were saved. Use
+#' `$results()` to read the biological output.
+#'
+#' Use [immundapter::set_output_dir()] to save a default for file-based
+#' runs. An explicit `output_dir` overrides the saved preference for that run.
 #'
 #' Large result tables remain on disk until needed. Use `dplyr::collect()` to
 #' read a table into R.
@@ -37,3 +40,11 @@
 #' @importFrom rlang abort sym
 #' @importFrom withr with_seed
 "_PACKAGE"
+
+utils::globalVariables(c(
+  "dd", "v_call", "germline_alignment", ".position", ".germline_base",
+  "sequence_alignment", "sequence_id", ".query_base",
+  ".trimmed_sequence", "v_germline_start", "pattern",
+  ".normalized_sequence", "replacement", "imgt_v_end",
+  "v_germline_end", "j_germline_start", "j_germline_end"
+))

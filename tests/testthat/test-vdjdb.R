@@ -1,9 +1,7 @@
-test_that("VDJdb defaults under immundapter_data/data", {
+test_that("VDJdb defaults to the package cache", {
   root <- withr::local_tempdir()
-  home <- fs::path(root, "home")
-  fs::dir_create(home)
   withr::local_envvar(c(
-    HOME = home,
+    R_USER_CACHE_DIR = root,
     IMMUNDAPTER_DATA = NA
   ))
 
@@ -11,8 +9,9 @@ test_that("VDJdb defaults under immundapter_data/data", {
 
   expect_equal(
     source$output_dir,
-    fs::path(fs::path_abs(home), "immundapter_data", "data")
+    fs::path(fs::path_abs(root), "R", "immundapter", "data")
   )
+  expect_false(fs::dir_exists(source$output_dir))
 })
 
 test_that("VDJdb respects the IMMUNDAPTER_DATA root", {
@@ -29,6 +28,7 @@ test_that("VDJdb respects the IMMUNDAPTER_DATA root", {
 
 test_that("VDJdb accepts a custom output directory", {
   root <- withr::local_tempdir()
+  withr::local_envvar(IMMUNDAPTER_DATA = fs::path(root, "override"))
   output_dir <- fs::path(root, "databases")
 
   source <- data_vdjdb(output_dir = output_dir)

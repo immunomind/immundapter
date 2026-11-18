@@ -13,26 +13,42 @@ raxml_ng_execute <- function(executable, args, stdout, stderr) {
 }
 
 
+raxml_ng_execution_error <- function(exit_status, log_paths, missing_output) {
+  log_lines <- character()
+  for (path in log_paths) {
+    if (fs::file_exists(path)) {
+      log_lines <- c(log_lines, readLines(path, warn = FALSE))
+    }
+  }
+  log_lines <- log_lines[nzchar(log_lines)]
+  error <- if (length(log_lines) == 0L) {
+    if (isTRUE(exit_status == 0L)) {
+      missing_output
+    } else {
+      sprintf("RAxML-NG exited with status %s.", exit_status)
+    }
+  } else {
+    paste(utils::tail(log_lines, 20L), collapse = " | ")
+  }
+  gsub("[\t\r\n]+", " ", error)
+}
+
+
+raxml_ng_existing_path <- function(path) {
+  if (fs::file_exists(path)) as.character(path) else NA_character_
+}
+
+
 raxml_ng_command_args <- function(config,
                                   alignment_path,
                                   prefix,
-                                  model_path = NULL) {
-  checkmate::assert_r6(config, classes = "RaxmlNgToolConfig")
-  checkmate::assert_string(alignment_path, min.chars = 1L)
-  checkmate::assert_string(prefix, min.chars = 1L)
-  checkmate::assert_string(model_path, min.chars = 1L, null.ok = TRUE)
-
+                                  model_path = NULL,
+                                  tree_path = NULL) {
   partitioned <- !is.null(config$partition_col)
-  if (partitioned && is.null(model_path)) {
-    rlang::abort("`model_path` is required for partitioned RAxML-NG input.")
-  }
-  if (!partitioned && !is.null(model_path)) {
-    rlang::abort("`model_path` requires a configured `partition_col`.")
-  }
-
   args <- c(
-    paste0("--", config$analysis),
+    if (is.null(tree_path)) paste0("--", config$analysis) else "--ancestral",
     "--msa", shQuote(alignment_path),
+    if (!is.null(tree_path)) c("--tree", shQuote(tree_path)),
     "--model", shQuote(if (partitioned) model_path else config$model),
     "--prefix", shQuote(prefix)
   )
@@ -49,8 +65,11 @@ raxml_ng_command_args <- function(config,
 }
 
 
-raxml_ng_format_command <- function(executable, args) {
-  paste(c(shQuote(executable), args), collapse = " ")
+raxml_ng_root_tree <- function(tree_path, rooted_path, outgroup_tips) {
+  tree <- ape::read.tree(tree_path)
+  rooted <- ape::root(tree, outgroup = outgroup_tips, resolve.root = TRUE)
+  ape::write.tree(rooted, file = rooted_path)
+  invisible(rooted_path)
 }
 
 
@@ -135,31 +154,6 @@ raxml_ng_parse_partitions <- function(specification, alignment_length) {
   }
 
   partitions
-}
-
-
-raxml_ng_write_model_file <- function(partitions, model, path) {
-  checkmate::assert_data_frame(
-    partitions,
-    min.rows = 1L,
-    col.names = "named"
-  )
-  checkmate::assert_names(
-    names(partitions),
-    must.include = c("name", "start", "end")
-  )
-  checkmate::assert_string(model, min.chars = 1L)
-  checkmate::assert_string(path, min.chars = 1L)
-
-  lines <- sprintf(
-    "%s, %s = %.0f-%.0f",
-    model,
-    partitions$name,
-    partitions$start,
-    partitions$end
-  )
-  writeLines(lines, path, useBytes = TRUE)
-  invisible(path)
 }
 
 
@@ -427,4 +421,115 @@ raxml_ng_collect_input <- function(input, config, additional_tips = NULL) {
   }
 
   prepared[order(prepared$family_id, prepared$tip_id), , drop = FALSE]
+}
+
+
+raxml_ng_prepare_outgroups <- function(outgroups, prepared) {
+  if (is.null(outgroups)) {
+    return(data.frame(
+      family_id = character(),
+      tip_id = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+  if (!is.data.frame(outgroups)) {
+    rlang::abort("`outgroups` must be a data frame or duckplyr table.")
+  }
+
+  required <- c("family_id", "tip_id")
+  missing_columns <- setdiff(required, colnames(outgroups))
+  if (length(missing_columns) > 0L) {
+    rlang::abort(sprintf(
+      "`outgroups` is missing required column(s): %s.",
+      paste(missing_columns, collapse = ", ")
+    ))
+  }
+
+  outgroups <- outgroups |>
+    dplyr::select(dplyr::all_of(required)) |>
+    dplyr::distinct() |>
+    duckplyr::as_duckdb_tibble()
+
+  values <- outgroups |>
+    dplyr::collect() |>
+    as.data.frame()
+  for (column in required) {
+    column_values <- as.character(values[[column]])
+    invalid <- is.na(values[[column]]) | !nzchar(trimws(column_values))
+    if (any(invalid)) {
+      rlang::abort(sprintf(
+        "`outgroups` contains %d missing or empty `%s` value(s).",
+        sum(invalid),
+        column
+      ))
+    }
+    if (any(grepl("[\t\r\n]", column_values))) {
+      rlang::abort(sprintf(
+        "`outgroups` `%s` values cannot contain tabs or line breaks.",
+        column
+      ))
+    }
+    values[[column]] <- column_values
+  }
+  outgroups <- values |>
+    duckplyr::as_duckdb_tibble()
+  available <- prepared |>
+    dplyr::select(dplyr::all_of(required)) |>
+    dplyr::distinct() |>
+    duckplyr::as_duckdb_tibble()
+
+  unknown_families <- outgroups |>
+    dplyr::select(dplyr::all_of("family_id")) |>
+    dplyr::distinct() |>
+    dplyr::anti_join(
+      available |>
+        dplyr::select(dplyr::all_of("family_id")) |>
+        dplyr::distinct(),
+      by = "family_id"
+    ) |>
+    dplyr::collect() |>
+    dplyr::pull("family_id")
+  if (length(unknown_families) > 0L) {
+    rlang::abort(sprintf(
+      "`outgroups` contains unknown family/families: %s.",
+      paste(unknown_families, collapse = ", ")
+    ))
+  }
+
+  unknown_tips <- outgroups |>
+    dplyr::anti_join(available, by = required) |>
+    dplyr::collect() |>
+    as.data.frame()
+  if (nrow(unknown_tips) > 0L) {
+    labels <- sprintf(
+      "%s (%s)",
+      unknown_tips$tip_id,
+      unknown_tips$family_id
+    )
+    rlang::abort(sprintf(
+      "`outgroups` contains unknown tip(s): %s.",
+      paste(labels, collapse = ", ")
+    ))
+  }
+
+  counts <- available |>
+    dplyr::count(!!rlang::sym("family_id"), name = "n_tips") |>
+    dplyr::inner_join(
+      outgroups |>
+        dplyr::count(!!rlang::sym("family_id"), name = "n_outgroups"),
+      by = "family_id"
+    ) |>
+    dplyr::filter(
+      !!rlang::sym("n_outgroups") >= !!rlang::sym("n_tips")
+    ) |>
+    dplyr::collect() |>
+    as.data.frame()
+  if (nrow(counts) > 0L) {
+    rlang::abort(sprintf(
+      "Every outgroup family must retain at least one ingroup tip; invalid: %s.",
+      paste(counts$family_id, collapse = ", ")
+    ))
+  }
+
+  values[order(values$family_id, values$tip_id), , drop = FALSE]
 }

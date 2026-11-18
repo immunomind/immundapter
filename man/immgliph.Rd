@@ -97,23 +97,36 @@ scores calculated by ImmGLIPH.
 }
 
 \examples{
-\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+\dontshow{if (identical(Sys.getenv("IMD_RUN_EXAMPLES"), "true")) withAutoprint(\{ # examplesIf}
+input_file <- system.file(
+  "extdata", "tcrdist3", "tcr-cluster-simple.tsv",
+  package = "immundapter"
+)
+idata <- immundata::read_repertoires(
+  path = input_file,
+  schema = immundata::make_receptor_schema(
+    features = c("v_call", "j_call", "junction_aa"), chains = "TRB"
+  ),
+  barcode_col = "cell_id", locus_col = "locus",
+  umi_col = "duplicate_count",
+  output_folder = tempfile("immgliph-immundata-")
+)
 config <- conf_immgliph(
   v_gene_col = "v_call",
-  patient_col = "donor",
   n_cores = 4L,
   seed = 1L
 )
 tool <- tool_immgliph(config)
 tool$help()
 
-tool$check()
-run <- tool$run(idata, output_dir = "analysis/immgliph")
-results <- run$results()
+if (tool$check()) {
+  run <- tool$run(idata, output_dir = tempfile("immgliph-run-"))
+  results <- run$results()
 
-groups <- dplyr::collect(results$groups)
-group_scores <- dplyr::collect(results$cluster_properties)
-grouped_idata <- results$annotate(idata)
+  groups <- dplyr::collect(results$groups)
+  group_scores <- dplyr::collect(results$cluster_properties)
+  grouped_idata <- results$annotate(idata)
+}
 \dontshow{\}) # examplesIf}
 }
 \seealso{

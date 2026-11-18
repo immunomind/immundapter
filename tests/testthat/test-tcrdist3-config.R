@@ -1,6 +1,6 @@
-test_that("tcrdist3 uses its managed immundapter_data environment", {
+test_that("tcrdist3 respects IMMUNDAPTER_DATA", {
   root <- withr::local_tempdir()
-  withr::local_envvar(IMMUNDAPTER_DATA = root)
+  withr::local_envvar(c(IMMUNDAPTER_DATA = "~/tool data", R_FS_HOME = root))
 
   config <- conf_tcrdist3()
   executable <- if (.Platform$OS.type == "windows") {
@@ -13,6 +13,7 @@ test_that("tcrdist3 uses its managed immundapter_data environment", {
     config$python,
     fs::path(
       fs::path_abs(root),
+      "tool data",
       "environments",
       "tcrdist3",
       executable
@@ -31,14 +32,14 @@ test_that("tcrdist3 accepts an explicit distance-only mode", {
   expect_equal(config$mode, "distance")
 })
 
-test_that("tcrdist3 managed environment defaults under the user home", {
+test_that("tcrdist3 managed environment and setup commands use the user data directory", {
   root <- withr::local_tempdir()
-  home <- fs::path(root, "home")
-  fs::dir_create(home)
+  data_dir <- fs::path(root, "user data")
   withr::local_envvar(c(
-    HOME = home,
+    R_USER_DATA_DIR = data_dir,
     IMMUNDAPTER_DATA = NA
   ))
+  withr::local_options(cli.width = 2000, cli.num_colors = 1)
 
   config <- conf_tcrdist3()
   executable <- if (.Platform$OS.type == "windows") {
@@ -50,12 +51,19 @@ test_that("tcrdist3 managed environment defaults under the user home", {
   expect_equal(
     config$python,
     fs::path(
-      fs::path_abs(home),
-      "immundapter_data",
+      fs::path_abs(data_dir),
+      "R",
+      "immundapter",
       "environments",
       "tcrdist3",
       executable
     )
+  )
+
+  help <- paste(capture_messages(tool_tcrdist3(config)$help()), collapse = "\n")
+  expect_match(help, "uv venv", fixed = TRUE)
+  expect_match(
+    help, paste0("uv pip install --python '", config$python, "'"), fixed = TRUE
   )
 })
 
