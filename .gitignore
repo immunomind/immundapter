@@ -3,3 +3,6 @@
 .Rhistory
 .RData
 .Ruserdata
+.venv_altdoc/
+docs/
+altdoc/freeze.rds
