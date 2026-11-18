@@ -15,20 +15,17 @@ concurrency:
 
 jobs:
   check:
+    name: Linux package check
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
+      IMD_RUN_EXAMPLES: "false"
+      NOT_CRAN: "false"
+      _R_CHECK_FORCE_SUGGESTS_: "false"
 
     steps:
       - uses: actions/checkout@v6
-
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.11"
-
-      - name: Install tcrdist3
-        run: python -m pip install tcrdist3
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -37,8 +34,59 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::rcmdcheck
+          cache: false
+          dependencies: '"hard"'
+          extra-packages: any::testthat any::rcmdcheck
           needs: check
+
+      - uses: r-lib/actions/check-r-package@v2
+
+  integration:
+    name: Linux external-tool integration
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      IMD_RUN_EXAMPLES: "true"
+      NOT_CRAN: "true"
+      _R_CHECK_FORCE_SUGGESTS_: "false"
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set tool data directory
+        run: echo "IMMUNDAPTER_DATA=${RUNNER_TEMP}/immundapter-data" >> "${GITHUB_ENV}"
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install tcrdist3
+        run: |
+          python -m venv "${IMMUNDAPTER_DATA}/environments/tcrdist3"
+          "${IMMUNDAPTER_DATA}/environments/tcrdist3/bin/python" -m pip install tcrdist3==0.3
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          cache: false
+          dependencies: '"hard"'
+          extra-packages: any::testthat any::rcmdcheck
+          needs: check
+
+      - name: Install optional R backends
+        shell: Rscript {0}
+        run: |
+          pak::pkg_install("BiocManager")
+          options(repos = c(
+            immGLIPH = "https://bioc.r-universe.dev",
+            BiocManager::repositories()
+          ))
+          pak::pkg_install(c("bioc::igblastr", "immGLIPH"))
 
       - name: Install RAxML-NG
         env:
@@ -52,12 +100,19 @@ jobs:
           chmod +x "${RUNNER_TEMP}/raxml-ng/raxml-ng"
           echo "${RUNNER_TEMP}/raxml-ng" >> "${GITHUB_PATH}"
 
-      - name: Install IgBLAST
+      - name: Install IgBLAST and reference databases
         shell: Rscript {0}
         run: |
           if (!igblastr::has_igblast()) {
             igblastr::install_igblast()
           }
+          bcr_db <- igblastr::install_IMGT_germline_db(
+            "202631-1", organism = "Homo sapiens"
+          )
+          igblastr::install_IMGT_germline_db(
+            "202631-1", organism = "Homo sapiens", tcr.db = TRUE
+          )
+          igblastr::use_germline_db(bcr_db)
 
       - name: Install immundapter
         run: R CMD INSTALL .
@@ -66,18 +121,17 @@ jobs:
         shell: Rscript {0}
         run: |
           library(immundapter)
+          igblastr::use_germline_db("IMGT-202631-1.Homo_sapiens.IGH+IGK+IGL")
 
           tools <- list(
             tool_immgliph(),
             tool_raxml_ng(),
-            tool_tcrdist3(conf_tcrdist3(python = "python")),
+            tool_tcrdist3(),
             tool_igblast()
           )
 
           stopifnot(all(vapply(tools, function(tool) tool$check(), logical(1))))
 
-      # R CMD check will discover testthat tests automatically when they are added.
       - uses: r-lib/actions/check-r-package@v2
         with:
-          args: 'c("--no-manual", "--no-examples")'
           error-on: '"error"'
