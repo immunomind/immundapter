@@ -3,3 +3,7 @@
 ^\.github$
 ^AGENTS\.md$
 ^ARCHITECTURE\.md$
+^data-raw$
+^altdoc$
+^docs$
+^\.venv_altdoc$
