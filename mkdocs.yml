@@ -1,0 +1,46 @@
+site_name: immundapter
+site_description: Lightweight R adapters for external immune repertoire tools
+site_url: https://immunomind.github.io/immundapter/
+repo_url: https://github.com/immunomind/immundapter
+repo_name: immunomind/immundapter
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: orange
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+plugins:
+  - search
+use_directory_urls: no
+exclude_docs: |
+  *
+  !/README.md
+  !/man/
+  !/man/*.md
+  !/assets/
+  !/assets/**
+nav:
+  - Home: README.md
+  - Reference:
+      - tcrdist3: man/tool_tcrdist3.md
+      - ImmGLIPH: man/immgliph.md
+      - IgBLAST: man/tool_igblast.md
+      - RAxML-NG: man/raxml-ng.md
+      - VDJdb: man/data_vdjdb.md

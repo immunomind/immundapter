@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+    <url>
+         <loc>https://immunomind.github.io/immundapter/index.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://immunomind.github.io/immundapter/man/data_vdjdb.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://immunomind.github.io/immundapter/man/immgliph.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://immunomind.github.io/immundapter/man/raxml-ng.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://immunomind.github.io/immundapter/man/set_output_dir.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://immunomind.github.io/immundapter/man/tool_igblast.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+    <url>
+         <loc>https://immunomind.github.io/immundapter/man/tool_tcrdist3.html</loc>
+         <lastmod>2026-11-20</lastmod>
+    </url>
+</urlset>
