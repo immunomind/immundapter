@@ -130,7 +130,7 @@ if (tool$check()) {
 \dontshow{\}) # examplesIf}
 }
 \seealso{
-\href{https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH}{ImmGLIPH manual}
+\href{https://github.com/BorchLab/immGLIPH}{ImmGLIPH documentation}
 }
 \section{Super class}{
 \code{\link[immundapter:AbstractConfig]{AbstractConfig}} -> \code{ImmGliphToolConfig}

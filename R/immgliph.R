@@ -84,7 +84,7 @@
 #' }
 #' @name immgliph
 #' @seealso
-#'   [ImmGLIPH manual](https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH)
+#'   [ImmGLIPH documentation](https://github.com/BorchLab/immGLIPH)
 #' @export
 conf_immgliph <- function(method = "gliph2",
                           reference = "human_v2.0_CD48",
@@ -211,10 +211,7 @@ ImmGliphTool <- R6::R6Class(
         '"https://bioc.r-universe.dev", ',
         '"https://cloud.r-project.org"))'
       )
-      documentation <- paste0(
-        "https://bioc.r-universe.dev/immGLIPH/",
-        "doc/manual.html#runGLIPH"
-      )
+      documentation <- "https://github.com/BorchLab/immGLIPH"
 
       cli::cli_inform(c("i" = "Install {.pkg immGLIPH}:"))
       div <- cli::cli_div(theme = list(

@@ -7,6 +7,7 @@ repo_name: immunomind/immundapter
 theme:
   name: material
   icon:
+    logo: material/power-plug
     repo: fontawesome/brands/github
   palette:
     - media: "(prefers-color-scheme: light)"
@@ -30,6 +31,11 @@ theme:
 
 plugins:
   - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
 
 use_directory_urls: false
 exclude_docs: |

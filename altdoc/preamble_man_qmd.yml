@@ -4,4 +4,6 @@ format:
     prefer-html: true
 execute:
   enabled: false
+filters:
+  - ../../altdoc/fix_rd_code_blocks.lua
 ---
