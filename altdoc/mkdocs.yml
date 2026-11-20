@@ -32,6 +32,9 @@ theme:
 plugins:
   - search
 
+extra_css:
+  - assets/stylesheets/extra.css
+
 markdown_extensions:
   - pymdownx.highlight:
       anchor_linenums: true

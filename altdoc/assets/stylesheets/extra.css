@@ -1,0 +1,3 @@
+#supported-tools + :is(table, .md-typeset__scrollwrap) td:last-child code {
+  white-space: nowrap;
+}
