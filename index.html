@@ -95,7 +95,7 @@
     <a href="index.html" title="immundapter" class="md-header__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -231,7 +231,7 @@
     <a href="index.html" title="immundapter" class="md-nav__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     immundapter
@@ -726,16 +726,16 @@ the results as annotations to <code>ImmunData</code> objects.</p>
 </table>
 <h2 id="install">Install</h2>
 <p>Use R 4.1 or later.</p>
-<pre><code class="language-r">install.packages(&quot;pak&quot;)
-pak::pkg_install(&quot;immunomind/immundapter&quot;)
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">install.packages</span><span class="p">(</span><span class="s">"pak"</span><span class="p">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">pak</span><span class="o">::</span><span class="nf">pkg_install</span><span class="p">(</span><span class="s">"immunomind/immundapter"</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="quick-start">Quick start</h2>
 <ol>
 <li>Print the tcrdist3 setup commands in R.</li>
 </ol>
-<p><code>r
-   tool &lt;- immundapter::tool_tcrdist3()
-   tool$help()</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">tool</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">immundapter</span><span class="o">::</span><span class="nf">tool_tcrdist3</span><span class="p">()</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">tool</span><span class="o">$</span><span class="nf">help</span><span class="p">()</span>
+</code></pre></div>
 <ol>
 <li>
 <p>Run the setup commands in your terminal.</p>
@@ -744,17 +744,17 @@ pak::pkg_install(&quot;immunomind/immundapter&quot;)
 <p>Cluster the T-cell receptors in the bundled example.</p>
 </li>
 </ol>
-<p><code>r
-   input &lt;- system.file(
-     "extdata", "tcrdist3", "tcr-cluster-simple.tsv",
-     package = "immundapter", mustWork = TRUE
-   )
-   run &lt;- tool$run(input, output_dir = tempdir())</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">input</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">system.file</span><span class="p">(</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="s">"extdata"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcrdist3"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcr-cluster-simple.tsv"</span><span class="p">,</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="n">package</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"immundapter"</span><span class="p">,</span><span class="w"> </span><span class="n">mustWork</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="p">)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span><span class="n">input</span><span class="p">,</span><span class="w"> </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempdir</span><span class="p">())</span>
+</code></pre></div>
 <ol>
 <li>Read the cluster table.</li>
 </ol>
-<p><code>r
-   dplyr::collect(run$results()$clusters)</code></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span><span class="o">$</span><span class="n">clusters</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="results-folder">Results folder</h2>
 <p><code>immundapter::set_output_dir()</code> command saves a default folder for tools to read and write results from and to.</p>
 

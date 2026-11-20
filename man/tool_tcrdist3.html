@@ -97,7 +97,7 @@
     <a href="../index.html" title="immundapter" class="md-header__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -233,7 +233,7 @@
     <a href="../index.html" title="immundapter" class="md-nav__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     immundapter
@@ -890,12 +890,11 @@ amino-acid sequences and V/J genes. A smaller distance means that two
 receptors are more similar. The tool can return the distances alone or
 use them to place similar receptors into groups.</p>
 <p>The usual workflow is:</p>
-<pre>tool &lt;- tool_tcrdist3()
-run &lt;- tool\$run(idata)
-results &lt;- run\$results()
-clusters &lt;- dplyr::collect(results\$clusters)
-</pre>
-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tool</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">tool_tcrdist3</span><span class="p">()</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span><span class="n">idata</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">results</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">clusters</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">results</span><span class="o">$</span><span class="n">clusters</span><span class="p">)</span>
+</code></pre></div>
 <h2 id="usage">Usage</h2>
 <pre><code class='language-R'>conf_tcrdist3(
   mode = c("cluster", "distance"),
@@ -1092,14 +1091,13 @@ chain should not be assumed to work for two chains.</p>
 <p>For paired <code>ImmunData</code>, the receptor schema tells the tool
 which row belongs to each chain, so both chains can use the same feature
 names:</p>
-<pre>conf_tcrdist3(
-  chains = c("alpha", "beta"),
-  cdr3_cols = c(alpha = "junction_aa", beta = "junction_aa"),
-  v_gene_cols = c(alpha = "v_call", beta = "v_call"),
-  j_gene_cols = c(alpha = "j_call", beta = "j_call")
-)
-</pre>
-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nf">conf_tcrdist3</span><span class="p">(</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="n">chains</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"alpha"</span><span class="p">,</span><span class="w"> </span><span class="s">"beta"</span><span class="p">),</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="n">cdr3_cols</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"junction_aa"</span><span class="p">,</span><span class="w"> </span><span class="n">beta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"junction_aa"</span><span class="p">),</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">v_gene_cols</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"v_call"</span><span class="p">,</span><span class="w"> </span><span class="n">beta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"v_call"</span><span class="p">),</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="n">j_gene_cols</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="n">alpha</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"j_call"</span><span class="p">,</span><span class="w"> </span><span class="n">beta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"j_call"</span><span class="p">)</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">)</span>
+</code></pre></div>
 <h2 id="choose-the-input">Choose the input</h2>
 <p><code>tool$run()</code> accepts:</p>
 <ul>
@@ -1221,51 +1219,51 @@ specific Python executable.</p>
 input</a>, <a href="https://tcrdist3.readthedocs.io/en/latest/">tcrdist3
 documentation</a></p>
 <h2 id="examples">Examples</h2>
-<pre><code class="language-r">library(&quot;immundapter&quot;)
-
-
-# Group similar TRB receptors in the bundled example.
-config &lt;- conf_tcrdist3(
-  store_all_cdr = FALSE,
-  cpus = 1L,
-  radius = 24L
-)
-tool &lt;- tool_tcrdist3(config)
-stopifnot(tool$check())
-
-input_file &lt;- system.file(
-  &quot;extdata&quot;, &quot;tcrdist3&quot;, &quot;tcr-cluster-simple.tsv&quot;,
-  package = &quot;immundapter&quot;
-)
-run &lt;- tool$run(
-  input_file,
-  output_dir = tempfile(&quot;tcrdist3-file-&quot;)
-)
-results &lt;- run$results()
-clusters &lt;- dplyr::collect(results$clusters)
-
-# Add the cluster assignments to ImmunData.
-snapshot &lt;- system.file(
-  &quot;extdata&quot;, &quot;tcrdist3&quot;, &quot;immundata-tcr-cluster-simple&quot;,
-  package = &quot;immundapter&quot;
-)
-idata &lt;- immundata::read_immundata(snapshot, verbose = FALSE)
-idata_run &lt;- tool$run(
-  idata,
-  output_dir = tempfile(&quot;tcrdist3-immundata-&quot;)
-)
-annotated_idata &lt;- idata_run$results()$annotate(idata)
-
-# Calculate distances without creating clusters.
-distance_tool &lt;- tool_tcrdist3(conf_tcrdist3(
-  mode = &quot;distance&quot;, store_all_cdr = FALSE
-))
-distance_run &lt;- distance_tool$run(
-  input_file,
-  output_dir = tempfile(&quot;tcrdist3-distance-&quot;)
-)
-distance_file &lt;- distance_run$results()$distances
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nf">library</span><span class="p">(</span><span class="s">"immundapter"</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Group similar TRB receptors in the bundled example.</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">config</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">conf_tcrdist3</span><span class="p">(</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">  </span><span class="n">store_all_cdr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">FALSE</span><span class="p">,</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="n">cpus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1L</span><span class="p">,</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">radius</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">24L</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">tool</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">tool_tcrdist3</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="nf">stopifnot</span><span class="p">(</span><span class="n">tool</span><span class="o">$</span><span class="nf">check</span><span class="p">())</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">input_file</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">system.file</span><span class="p">(</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">  </span><span class="s">"extdata"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcrdist3"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcr-cluster-simple.tsv"</span><span class="p">,</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="n">package</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"immundapter"</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="p">)</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="w">  </span><span class="n">input_file</span><span class="p">,</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">  </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"tcrdist3-file-"</span><span class="p">)</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="p">)</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="n">results</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="n">clusters</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">results</span><span class="o">$</span><span class="n">clusters</span><span class="p">)</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="c1"># Add the cluster assignments to ImmunData.</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="n">snapshot</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">system.file</span><span class="p">(</span>
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">  </span><span class="s">"extdata"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcrdist3"</span><span class="p">,</span><span class="w"> </span><span class="s">"immundata-tcr-cluster-simple"</span><span class="p">,</span>
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="w">  </span><span class="n">package</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"immundapter"</span>
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a><span class="p">)</span>
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="n">idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">read_immundata</span><span class="p">(</span><span class="n">snapshot</span><span class="p">,</span><span class="w"> </span><span class="n">verbose</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">FALSE</span><span class="p">)</span>
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="n">idata_run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span>
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="w">  </span><span class="n">idata</span><span class="p">,</span>
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="w">  </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"tcrdist3-immundata-"</span><span class="p">)</span>
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a><span class="p">)</span>
+<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a><span class="n">annotated_idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">idata_run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span><span class="o">$</span><span class="nf">annotate</span><span class="p">(</span><span class="n">idata</span><span class="p">)</span>
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>
+<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a><span class="c1"># Calculate distances without creating clusters.</span>
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a><span class="n">distance_tool</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">tool_tcrdist3</span><span class="p">(</span><span class="nf">conf_tcrdist3</span><span class="p">(</span>
+<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="w">  </span><span class="n">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"distance"</span><span class="p">,</span><span class="w"> </span><span class="n">store_all_cdr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">FALSE</span>
+<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a><span class="p">))</span>
+<a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a><span class="n">distance_run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">distance_tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span>
+<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a><span class="w">  </span><span class="n">input_file</span><span class="p">,</span>
+<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a><span class="w">  </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"tcrdist3-distance-"</span><span class="p">)</span>
+<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a><span class="p">)</span>
+<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a><span class="n">distance_file</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">distance_run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span><span class="o">$</span><span class="n">distances</span>
+</code></pre></div>
 
 
 

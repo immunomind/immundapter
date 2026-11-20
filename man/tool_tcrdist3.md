@@ -13,11 +13,12 @@ use them to place similar receptors into groups.
 
 The usual workflow is:
 
-<pre>tool &lt;- tool_tcrdist3()
-run &lt;- tool\$run(idata)
-results &lt;- run\$results()
-clusters &lt;- dplyr::collect(results\$clusters)
-</pre>
+``` r
+tool <- tool_tcrdist3()
+run <- tool$run(idata)
+results <- run$results()
+clusters <- dplyr::collect(results$clusters)
+```
 
 ## Usage
 
@@ -229,13 +230,14 @@ For paired <code>ImmunData</code>, the receptor schema tells the tool
 which row belongs to each chain, so both chains can use the same feature
 names:
 
-<pre>conf_tcrdist3(
+``` r
+conf_tcrdist3(
   chains = c("alpha", "beta"),
   cdr3_cols = c(alpha = "junction_aa", beta = "junction_aa"),
   v_gene_cols = c(alpha = "v_call", beta = "v_call"),
   j_gene_cols = c(alpha = "j_call", beta = "j_call")
 )
-</pre>
+```
 
 ## Choose the input
 

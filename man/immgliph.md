@@ -305,7 +305,9 @@ Create checked ImmGLIPH settings. Users should call
 Usage
 </h5>
 
-<pre>ImmGliphToolConfig\$new(values)</pre>
+``` r
+ImmGliphToolConfig$new(values)
+```
 
 <h5>
 Arguments
@@ -322,8 +324,8 @@ A named list of ImmGLIPH settings.
 
 ## See Also
 
-<a href="https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH">ImmGLIPH
-manual</a>
+<a href="https://github.com/BorchLab/immGLIPH">ImmGLIPH
+documentation</a>
 
 ## Examples
 

@@ -95,7 +95,7 @@
     <a href="../index.html" title="immundapter" class="md-header__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -231,7 +231,7 @@
     <a href="../index.html" title="immundapter" class="md-nav__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     immundapter
@@ -809,34 +809,34 @@ distinguish from the original columns.</p>
 <h2 id="see-also">See Also</h2>
 <p><a href="https://github.com/antigenomics/vdjdb-db">VDJdb database</a></p>
 <h2 id="examples">Examples</h2>
-<pre><code class="language-r">library(&quot;immundapter&quot;)
-
-
-data &lt;- data_vdjdb(output_dir = tempfile(&quot;vdjdb-cache-&quot;))
-
-# First call: print instructions. Second call: perform the download.
-data$download()
-data$download(execute = TRUE)
-data$check()
-
-vdjdb_table &lt;- data$load()
-dplyr::collect(vdjdb_table)
-
-input_file &lt;- system.file(
-  &quot;extdata&quot;, &quot;tcrdist3&quot;, &quot;tcr-cluster-simple.tsv&quot;,
-  package = &quot;immundapter&quot;
-)
-idata &lt;- immundata::read_repertoires(
-  path = input_file,
-  schema = immundata::make_receptor_schema(
-    features = c(&quot;v_call&quot;, &quot;j_call&quot;, &quot;junction_aa&quot;), chains = &quot;TRB&quot;
-  ),
-  barcode_col = &quot;cell_id&quot;, locus_col = &quot;locus&quot;,
-  umi_col = &quot;duplicate_count&quot;,
-  output_folder = tempfile(&quot;vdjdb-immundata-&quot;)
-)
-annotated_idata &lt;- data$annotate(idata)
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">library</span><span class="p">(</span><span class="s">"immundapter"</span><span class="p">)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">data</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">data_vdjdb</span><span class="p">(</span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"vdjdb-cache-"</span><span class="p">))</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># First call: print instructions. Second call: perform the download.</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">data</span><span class="o">$</span><span class="nf">download</span><span class="p">()</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">data</span><span class="o">$</span><span class="nf">download</span><span class="p">(</span><span class="n">execute</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">data</span><span class="o">$</span><span class="nf">check</span><span class="p">()</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">vdjdb_table</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">data</span><span class="o">$</span><span class="nf">load</span><span class="p">()</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">vdjdb_table</span><span class="p">)</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">input_file</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">system.file</span><span class="p">(</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">  </span><span class="s">"extdata"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcrdist3"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcr-cluster-simple.tsv"</span><span class="p">,</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">  </span><span class="n">package</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"immundapter"</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="n">idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">read_repertoires</span><span class="p">(</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">  </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input_file</span><span class="p">,</span>
+<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">  </span><span class="n">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">make_receptor_schema</span><span class="p">(</span>
+<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="w">    </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"v_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"j_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"junction_aa"</span><span class="p">),</span><span class="w"> </span><span class="n">chains</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"TRB"</span>
+<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="w">  </span><span class="p">),</span>
+<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="w">  </span><span class="n">barcode_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"cell_id"</span><span class="p">,</span><span class="w"> </span><span class="n">locus_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"locus"</span><span class="p">,</span>
+<a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a><span class="w">  </span><span class="n">umi_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"duplicate_count"</span><span class="p">,</span>
+<a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="w">  </span><span class="n">output_folder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"vdjdb-immundata-"</span><span class="p">)</span>
+<a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="p">)</span>
+<a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="n">annotated_idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">data</span><span class="o">$</span><span class="nf">annotate</span><span class="p">(</span><span class="n">idata</span><span class="p">)</span>
+</code></pre></div>
 
 
 

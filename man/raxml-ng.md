@@ -449,7 +449,9 @@ Create checked RAxML-NG settings. Users should call
 Usage
 </h5>
 
-<pre>RaxmlNgToolConfig\$new(values)</pre>
+``` r
+RaxmlNgToolConfig$new(values)
+```
 
 <h5>
 Arguments

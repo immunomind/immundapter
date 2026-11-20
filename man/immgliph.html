@@ -97,7 +97,7 @@
     <a href="../index.html" title="immundapter" class="md-header__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -233,7 +233,7 @@
     <a href="../index.html" title="immundapter" class="md-nav__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     immundapter
@@ -1101,8 +1101,8 @@ data-id="as_list"><a href='../../immundapter/html/AbstractConfig.html#method-Abs
 Usage
 </h5>
 
-<pre>ImmGliphToolConfig\$new(values)</pre>
-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">ImmGliphToolConfig</span><span class="o">$</span><span class="nf">new</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+</code></pre></div>
 <h5>
 Arguments
 </h5>
@@ -1117,42 +1117,42 @@ A named list of ImmGLIPH settings.
 </dl>
 
 <h2 id="see-also">See Also</h2>
-<p><a href="https://bioc.r-universe.dev/immGLIPH/doc/manual.html#runGLIPH">ImmGLIPH
-manual</a></p>
+<p><a href="https://github.com/BorchLab/immGLIPH">ImmGLIPH
+documentation</a></p>
 <h2 id="examples">Examples</h2>
-<pre><code class="language-r">library(&quot;immundapter&quot;)
-
-
-input_file &lt;- system.file(
-  &quot;extdata&quot;, &quot;tcrdist3&quot;, &quot;tcr-cluster-simple.tsv&quot;,
-  package = &quot;immundapter&quot;
-)
-idata &lt;- immundata::read_repertoires(
-  path = input_file,
-  schema = immundata::make_receptor_schema(
-    features = c(&quot;v_call&quot;, &quot;j_call&quot;, &quot;junction_aa&quot;), chains = &quot;TRB&quot;
-  ),
-  barcode_col = &quot;cell_id&quot;, locus_col = &quot;locus&quot;,
-  umi_col = &quot;duplicate_count&quot;,
-  output_folder = tempfile(&quot;immgliph-immundata-&quot;)
-)
-config &lt;- conf_immgliph(
-  v_gene_col = &quot;v_call&quot;,
-  n_cores = 4L,
-  seed = 1L
-)
-tool &lt;- tool_immgliph(config)
-tool$help()
-
-if (tool$check()) {
-  run &lt;- tool$run(idata, output_dir = tempfile(&quot;immgliph-run-&quot;))
-  results &lt;- run$results()
-
-  groups &lt;- dplyr::collect(results$groups)
-  group_scores &lt;- dplyr::collect(results$cluster_properties)
-  grouped_idata &lt;- results$annotate(idata)
-}
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nf">library</span><span class="p">(</span><span class="s">"immundapter"</span><span class="p">)</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">input_file</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">system.file</span><span class="p">(</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="s">"extdata"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcrdist3"</span><span class="p">,</span><span class="w"> </span><span class="s">"tcr-cluster-simple.tsv"</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">  </span><span class="n">package</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"immundapter"</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="p">)</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">read_repertoires</span><span class="p">(</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">  </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input_file</span><span class="p">,</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span><span class="n">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">make_receptor_schema</span><span class="p">(</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"v_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"j_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"junction_aa"</span><span class="p">),</span><span class="w"> </span><span class="n">chains</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"TRB"</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="p">),</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">  </span><span class="n">barcode_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"cell_id"</span><span class="p">,</span><span class="w"> </span><span class="n">locus_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"locus"</span><span class="p">,</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">  </span><span class="n">umi_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"duplicate_count"</span><span class="p">,</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="n">output_folder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"immgliph-immundata-"</span><span class="p">)</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="p">)</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">config</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">conf_immgliph</span><span class="p">(</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">  </span><span class="n">v_gene_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"v_call"</span><span class="p">,</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">  </span><span class="n">n_cores</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">4L</span><span class="p">,</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">  </span><span class="n">seed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1L</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="p">)</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="n">tool</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">tool_immgliph</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="n">tool</span><span class="o">$</span><span class="nf">help</span><span class="p">()</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="kr">if</span><span class="w"> </span><span class="p">(</span><span class="n">tool</span><span class="o">$</span><span class="nf">check</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="w">  </span><span class="n">run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span><span class="n">idata</span><span class="p">,</span><span class="w"> </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"immgliph-run-"</span><span class="p">))</span>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="w">  </span><span class="n">results</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="w">  </span><span class="n">groups</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">results</span><span class="o">$</span><span class="n">groups</span><span class="p">)</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="w">  </span><span class="n">group_scores</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">results</span><span class="o">$</span><span class="n">cluster_properties</span><span class="p">)</span>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="w">  </span><span class="n">grouped_idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">results</span><span class="o">$</span><span class="nf">annotate</span><span class="p">(</span><span class="n">idata</span><span class="p">)</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="p">}</span>
+</code></pre></div>
 
 
 

@@ -97,7 +97,7 @@
     <a href="../index.html" title="immundapter" class="md-header__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
@@ -233,7 +233,7 @@
     <a href="../index.html" title="immundapter" class="md-nav__button md-logo" aria-label="immundapter" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M16 7V3h-2v4h-4V3H8v4C7 7 6 8 6 9v5.5L9.5 18v3h5v-3l3.5-3.5V9c0-1-1-2-2-2"/></svg>
 
     </a>
     immundapter
@@ -868,24 +868,23 @@ immune receptor sequence. It produces V, D, J, and, when available, C
 gene calls in an AIRR table that can be imported with
 <code>immundata::read_repertoires()</code>.</p>
 <p>The usual workflow is:</p>
-<pre>run &lt;- tool_igblast()\$run(c(
-  fasta = "sequences.fasta",
-  annotations = "contig_annotations.csv"
-))
-idata &lt;- immundata::read_repertoires(
-  path = run\$results()\$final_output,
-  schema = immundata::make_receptor_schema(
-    features = c("v_call", "j_call", "junction_aa"),
-    chains = c("IGH", "IGK|IGL")
-  ),
-  barcode_col = "barcode",
-  locus_col = "locus",
-  umi_col = "umis",
-  preprocess = immundata::make_default_preprocessing("10x"),
-  rename_columns = NULL
-)
-</pre>
-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">tool_igblast</span><span class="p">()</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span><span class="nf">c</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="n">fasta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"sequences.fasta"</span><span class="p">,</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="n">annotations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"contig_annotations.csv"</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="p">))</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">read_repertoires</span><span class="p">(</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">  </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span><span class="o">$</span><span class="n">final_output</span><span class="p">,</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="n">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">make_receptor_schema</span><span class="p">(</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"v_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"j_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"junction_aa"</span><span class="p">),</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="n">chains</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"IGH"</span><span class="p">,</span><span class="w"> </span><span class="s">"IGK|IGL"</span><span class="p">)</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">  </span><span class="p">),</span>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span><span class="n">barcode_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"barcode"</span><span class="p">,</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="n">locus_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"locus"</span><span class="p">,</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="n">umi_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"umis"</span><span class="p">,</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">  </span><span class="n">preprocess</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">make_default_preprocessing</span><span class="p">(</span><span class="s">"10x"</span><span class="p">),</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">  </span><span class="n">rename_columns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">NULL</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
+</code></pre></div>
 <h2 id="usage">Usage</h2>
 <pre><code class='language-R'>conf_igblast(num_threads = NULL, run_args = list())
 
@@ -940,15 +939,14 @@ not contain enough information for useful V- and J-gene annotation.</p>
 <h2 id="before-the-first-analysis">Before the first analysis</h2>
 <p>Install IgBLAST and one germline database with <code>igblastr</code>.
 Select the database in the same R session in which you run the analysis:</p>
-<pre>igblastr::install_igblast()
-igblastr::install_IMGT_germline_db(
-  "&lt;release&gt;",
-  organism = "Homo sapiens",
-  tcr.db = FALSE
-)
-igblastr::use_germline_db("&lt;db-name&gt;")
-</pre>
-
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">igblastr</span><span class="o">::</span><span class="nf">install_igblast</span><span class="p">()</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">igblastr</span><span class="o">::</span><span class="nf">install_IMGT_germline_db</span><span class="p">(</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="s">"&lt;release&gt;"</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span><span class="n">organism</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Homo sapiens"</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="n">tcr.db</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">FALSE</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">)</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">igblastr</span><span class="o">::</span><span class="nf">use_germline_db</span><span class="p">(</span><span class="s">"&lt;db-name&gt;"</span><span class="p">)</span>
+</code></pre></div>
 <p>Use <code>tool$help()</code> for setup commands and
 <code>tool$check()</code> to confirm that the selected database and
 IgBLAST installation are ready.</p>
@@ -1068,63 +1066,63 @@ TSV, TXT, and gzip-compressed annotation files are accepted.</p>
 <p><a href="https://bioconductor.org/packages/release/bioc/vignettes/igblastr/inst/doc/igblastr_overview.html">igblastr
 overview</a></p>
 <h2 id="examples">Examples</h2>
-<pre><code class="language-r">library(&quot;immundapter&quot;)
-
-
-# Select an installed human BCR IMGT database.
-databases &lt;- igblastr::list_germline_dbs(names.only = TRUE)
-databases &lt;- grep(
-  &quot;Homo_sapiens.IGH+IGK+IGL&quot;,
-  databases,
-  value = TRUE,
-  fixed = TRUE
-)
-databases &lt;- grep(&quot;^IMGT-&quot;, databases, value = TRUE)
-stopifnot(length(databases) &gt; 0L)
-suppressMessages(
-  igblastr::use_germline_db(sort(databases)[[length(databases)]])
-)
-
-config &lt;- conf_igblast()
-tool &lt;- tool_igblast(config)
-stopifnot(tool$check())
-
-antitnf_dir &lt;- system.file(&quot;extdata&quot;, &quot;antitnf&quot;, package = &quot;immundapter&quot;)
-antitnf_fasta &lt;- file.path(antitnf_dir, &quot;bcr_contigs.fasta.gz&quot;)
-antitnf_annotations &lt;- file.path(
-  antitnf_dir,
-  &quot;contig_annotations.csv.gz&quot;
-)
-
-# Analyse a FASTA file directly.
-fasta_run &lt;- tool$run(
-  antitnf_fasta,
-  output_dir = tempfile(&quot;igblast-fasta-&quot;)
-)
-fasta_airr &lt;- dplyr::collect(fasta_run$results()$airr)
-
-# Preserve the matching 10x annotation table and import the AIRR result.
-paired_run &lt;- tool$run(
-  c(
-    fasta = antitnf_fasta,
-    annotations = antitnf_annotations
-  ),
-  output_dir = tempfile(&quot;igblast-10x-&quot;)
-)
-idata &lt;- immundata::read_repertoires(
-  path = paired_run$results()$final_output,
-  schema = immundata::make_receptor_schema(
-    features = c(&quot;v_call&quot;, &quot;j_call&quot;, &quot;junction_aa&quot;),
-    chains = c(&quot;IGH&quot;, &quot;IGK|IGL&quot;)
-  ),
-  barcode_col = &quot;barcode&quot;,
-  locus_col = &quot;locus&quot;,
-  umi_col = &quot;umis&quot;,
-  preprocess = immundata::make_default_preprocessing(&quot;10x&quot;),
-  rename_columns = NULL,
-  output_folder = tempfile(&quot;antitnf-immundata-&quot;)
-)
-</code></pre>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nf">library</span><span class="p">(</span><span class="s">"immundapter"</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Select an installed human BCR IMGT database.</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">databases</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">igblastr</span><span class="o">::</span><span class="nf">list_germline_dbs</span><span class="p">(</span><span class="n">names.only</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">databases</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">grep</span><span class="p">(</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="s">"Homo_sapiens.IGH+IGK+IGL"</span><span class="p">,</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="n">databases</span><span class="p">,</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">,</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">  </span><span class="n">fixed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="p">)</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">databases</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">grep</span><span class="p">(</span><span class="s">"^IMGT-"</span><span class="p">,</span><span class="w"> </span><span class="n">databases</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">)</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="nf">stopifnot</span><span class="p">(</span><span class="nf">length</span><span class="p">(</span><span class="n">databases</span><span class="p">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="m">0L</span><span class="p">)</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="nf">suppressMessages</span><span class="p">(</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">  </span><span class="n">igblastr</span><span class="o">::</span><span class="nf">use_germline_db</span><span class="p">(</span><span class="nf">sort</span><span class="p">(</span><span class="n">databases</span><span class="p">)[[</span><span class="nf">length</span><span class="p">(</span><span class="n">databases</span><span class="p">)]])</span>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="p">)</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="n">config</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">conf_igblast</span><span class="p">()</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="n">tool</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">tool_igblast</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="nf">stopifnot</span><span class="p">(</span><span class="n">tool</span><span class="o">$</span><span class="nf">check</span><span class="p">())</span>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="n">antitnf_dir</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">system.file</span><span class="p">(</span><span class="s">"extdata"</span><span class="p">,</span><span class="w"> </span><span class="s">"antitnf"</span><span class="p">,</span><span class="w"> </span><span class="n">package</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"immundapter"</span><span class="p">)</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="n">antitnf_fasta</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">file.path</span><span class="p">(</span><span class="n">antitnf_dir</span><span class="p">,</span><span class="w"> </span><span class="s">"bcr_contigs.fasta.gz"</span><span class="p">)</span>
+<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a><span class="n">antitnf_annotations</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="nf">file.path</span><span class="p">(</span>
+<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">  </span><span class="n">antitnf_dir</span><span class="p">,</span>
+<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="w">  </span><span class="s">"contig_annotations.csv.gz"</span>
+<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a><span class="p">)</span>
+<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>
+<a id="__codelineno-2-29" name="__codelineno-2-29" href="#__codelineno-2-29"></a><span class="c1"># Analyse a FASTA file directly.</span>
+<a id="__codelineno-2-30" name="__codelineno-2-30" href="#__codelineno-2-30"></a><span class="n">fasta_run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span>
+<a id="__codelineno-2-31" name="__codelineno-2-31" href="#__codelineno-2-31"></a><span class="w">  </span><span class="n">antitnf_fasta</span><span class="p">,</span>
+<a id="__codelineno-2-32" name="__codelineno-2-32" href="#__codelineno-2-32"></a><span class="w">  </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"igblast-fasta-"</span><span class="p">)</span>
+<a id="__codelineno-2-33" name="__codelineno-2-33" href="#__codelineno-2-33"></a><span class="p">)</span>
+<a id="__codelineno-2-34" name="__codelineno-2-34" href="#__codelineno-2-34"></a><span class="n">fasta_airr</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">dplyr</span><span class="o">::</span><span class="nf">collect</span><span class="p">(</span><span class="n">fasta_run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span><span class="o">$</span><span class="n">airr</span><span class="p">)</span>
+<a id="__codelineno-2-35" name="__codelineno-2-35" href="#__codelineno-2-35"></a>
+<a id="__codelineno-2-36" name="__codelineno-2-36" href="#__codelineno-2-36"></a><span class="c1"># Preserve the matching 10x annotation table and import the AIRR result.</span>
+<a id="__codelineno-2-37" name="__codelineno-2-37" href="#__codelineno-2-37"></a><span class="n">paired_run</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">tool</span><span class="o">$</span><span class="nf">run</span><span class="p">(</span>
+<a id="__codelineno-2-38" name="__codelineno-2-38" href="#__codelineno-2-38"></a><span class="w">  </span><span class="nf">c</span><span class="p">(</span>
+<a id="__codelineno-2-39" name="__codelineno-2-39" href="#__codelineno-2-39"></a><span class="w">    </span><span class="n">fasta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">antitnf_fasta</span><span class="p">,</span>
+<a id="__codelineno-2-40" name="__codelineno-2-40" href="#__codelineno-2-40"></a><span class="w">    </span><span class="n">annotations</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">antitnf_annotations</span>
+<a id="__codelineno-2-41" name="__codelineno-2-41" href="#__codelineno-2-41"></a><span class="w">  </span><span class="p">),</span>
+<a id="__codelineno-2-42" name="__codelineno-2-42" href="#__codelineno-2-42"></a><span class="w">  </span><span class="n">output_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"igblast-10x-"</span><span class="p">)</span>
+<a id="__codelineno-2-43" name="__codelineno-2-43" href="#__codelineno-2-43"></a><span class="p">)</span>
+<a id="__codelineno-2-44" name="__codelineno-2-44" href="#__codelineno-2-44"></a><span class="n">idata</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">read_repertoires</span><span class="p">(</span>
+<a id="__codelineno-2-45" name="__codelineno-2-45" href="#__codelineno-2-45"></a><span class="w">  </span><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">paired_run</span><span class="o">$</span><span class="nf">results</span><span class="p">()</span><span class="o">$</span><span class="n">final_output</span><span class="p">,</span>
+<a id="__codelineno-2-46" name="__codelineno-2-46" href="#__codelineno-2-46"></a><span class="w">  </span><span class="n">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">make_receptor_schema</span><span class="p">(</span>
+<a id="__codelineno-2-47" name="__codelineno-2-47" href="#__codelineno-2-47"></a><span class="w">    </span><span class="n">features</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"v_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"j_call"</span><span class="p">,</span><span class="w"> </span><span class="s">"junction_aa"</span><span class="p">),</span>
+<a id="__codelineno-2-48" name="__codelineno-2-48" href="#__codelineno-2-48"></a><span class="w">    </span><span class="n">chains</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s">"IGH"</span><span class="p">,</span><span class="w"> </span><span class="s">"IGK|IGL"</span><span class="p">)</span>
+<a id="__codelineno-2-49" name="__codelineno-2-49" href="#__codelineno-2-49"></a><span class="w">  </span><span class="p">),</span>
+<a id="__codelineno-2-50" name="__codelineno-2-50" href="#__codelineno-2-50"></a><span class="w">  </span><span class="n">barcode_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"barcode"</span><span class="p">,</span>
+<a id="__codelineno-2-51" name="__codelineno-2-51" href="#__codelineno-2-51"></a><span class="w">  </span><span class="n">locus_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"locus"</span><span class="p">,</span>
+<a id="__codelineno-2-52" name="__codelineno-2-52" href="#__codelineno-2-52"></a><span class="w">  </span><span class="n">umi_col</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"umis"</span><span class="p">,</span>
+<a id="__codelineno-2-53" name="__codelineno-2-53" href="#__codelineno-2-53"></a><span class="w">  </span><span class="n">preprocess</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">immundata</span><span class="o">::</span><span class="nf">make_default_preprocessing</span><span class="p">(</span><span class="s">"10x"</span><span class="p">),</span>
+<a id="__codelineno-2-54" name="__codelineno-2-54" href="#__codelineno-2-54"></a><span class="w">  </span><span class="n">rename_columns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">NULL</span><span class="p">,</span>
+<a id="__codelineno-2-55" name="__codelineno-2-55" href="#__codelineno-2-55"></a><span class="w">  </span><span class="n">output_folder</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">tempfile</span><span class="p">(</span><span class="s">"antitnf-immundata-"</span><span class="p">)</span>
+<a id="__codelineno-2-56" name="__codelineno-2-56" href="#__codelineno-2-56"></a><span class="p">)</span>
+</code></pre></div>
 
 
 

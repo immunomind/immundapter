@@ -13,12 +13,13 @@ gene calls in an AIRR table that can be imported with
 
 The usual workflow is:
 
-<pre>run &lt;- tool_igblast()\$run(c(
+``` r
+run <- tool_igblast()$run(c(
   fasta = "sequences.fasta",
   annotations = "contig_annotations.csv"
 ))
-idata &lt;- immundata::read_repertoires(
-  path = run\$results()\$final_output,
+idata <- immundata::read_repertoires(
+  path = run$results()$final_output,
   schema = immundata::make_receptor_schema(
     features = c("v_call", "j_call", "junction_aa"),
     chains = c("IGH", "IGK|IGL")
@@ -29,7 +30,7 @@ idata &lt;- immundata::read_repertoires(
   preprocess = immundata::make_default_preprocessing("10x"),
   rename_columns = NULL
 )
-</pre>
+```
 
 ## Usage
 
@@ -94,14 +95,15 @@ not contain enough information for useful V- and J-gene annotation.
 Install IgBLAST and one germline database with <code>igblastr</code>.
 Select the database in the same R session in which you run the analysis:
 
-<pre>igblastr::install_igblast()
+``` r
+igblastr::install_igblast()
 igblastr::install_IMGT_germline_db(
-  "&lt;release&gt;",
+  "<release>",
   organism = "Homo sapiens",
   tcr.db = FALSE
 )
-igblastr::use_germline_db("&lt;db-name&gt;")
-</pre>
+igblastr::use_germline_db("<db-name>")
+```
 
 Use <code>tool$help()</code> for setup commands and
 <code>tool$check()</code> to confirm that the selected database and
