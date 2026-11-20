@@ -135,17 +135,35 @@ VdjdbData <- R6::R6Class(
       )
 
       contents <- utils::unzip(archive, list = TRUE)$Name
-      entry <- contents[endsWith(contents, "/vdjdb.slim.txt")]
+      filenames <- basename(contents)
+      entry <- contents[filenames == "vdjdb.slim.txt"]
+      if (!length(entry)) {
+        entry <- contents[filenames == "vdjdb.slim.txt.gz"]
+      }
       if (length(entry) != 1L) {
-        rlang::abort("The VDJdb release does not contain `vdjdb.slim.txt`.")
+        rlang::abort(
+          "Expected one `vdjdb.slim.txt` or `vdjdb.slim.txt.gz` in the release."
+        )
       }
 
-      utils::unzip(archive, files = entry, exdir = extract_dir)
-      if (!file.copy(
-        fs::path(extract_dir, entry),
-        path,
-        overwrite = TRUE
-      )) {
+      utils::unzip(archive, files = entry, exdir = extract_dir, junkpaths = TRUE)
+      pending <- tempfile("vdjdb-", tmpdir = output_dir)
+      on.exit(unlink(pending), add = TRUE)
+
+      # gzfile() reads plain and gzip-compressed files.
+      input <- gzfile(fs::path(extract_dir, basename(entry)), "rb")
+      on.exit(close(input), add = TRUE, after = FALSE)
+      output <- file(pending, "wb")
+      tryCatch({
+        repeat {
+          bytes <- readBin(input, "raw", n = 1024L * 1024L)
+          if (!length(bytes)) {
+            break
+          }
+          writeBin(bytes, output)
+        }
+      }, finally = close(output))
+      if (!file.rename(pending, path)) {
         rlang::abort("Failed to save the VDJdb database.")
       }
 

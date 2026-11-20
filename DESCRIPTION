@@ -1,6 +1,6 @@
 Package: immundapter
 Type: Package
-Title: Lightweight R Adapters for External Immune Repertoire Tools
+Title: Lightweight R Adapters for Immune Repertoire Tools
 Version: 0.1.0
 Depends:
     R (>= 4.1.0)

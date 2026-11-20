@@ -52,3 +52,40 @@ test_that("VDJdb reports the direct database destination", {
     expected
   )
 })
+
+test_that("VDJdb downloads plain and gzip-compressed slim tables", {
+  skip_if(!nzchar(Sys.which("zip")), "zip is required to build the test archive")
+  root <- withr::local_tempdir()
+  withr::local_dir(root)
+  lines <- c("cdr3\tgene", "CASSA\tTRB")
+  release_dir <- fs::dir_create("vdjdb-test")
+  plain <- fs::path(release_dir, "vdjdb.slim.txt")
+  compressed <- fs::path(release_dir, "vdjdb.slim.txt.gz")
+  writeLines(lines, plain)
+  withr::with_connection(list(file = gzfile(compressed, "wt")), {
+    writeLines(lines, file)
+  })
+
+  archive <- fs::path(root, "release.zip")
+  testthat::local_mocked_bindings(
+    download.file = function(url, destfile, ...) {
+      if (endsWith(url, "/latest-version.txt")) {
+        writeLines("https://example.org/release.zip", destfile)
+      } else {
+        file.copy(archive, destfile)
+      }
+    },
+    .package = "utils"
+  )
+
+  source <- data_vdjdb(output_dir = fs::path(root, "cache"))
+  for (entry in c(plain, compressed)) {
+    unlink(archive)
+    expect_equal(utils::zip(archive, entry, flags = "-q"), 0L)
+    expect_true(source$download(execute = TRUE, force = TRUE))
+    expect_equal(readLines(fs::path(source$output_dir, "vdjdb.slim.txt")), lines)
+    table <- source$load()
+    expect_s3_class(table, "duckplyr_df")
+    expect_equal(dplyr::collect(table)$cdr3, "CASSA")
+  }
+})
